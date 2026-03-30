@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>N-MEC 会員プラットフォーム</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.0/axios.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; background: #f8fafc; color: #1e293b; }
+
+  /* Auth */
+  #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #1a2e4a, #243a5e); padding: 20px; }
+  .auth-box { background: #fff; border-radius: 16px; padding: 40px 32px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  .auth-logo { text-align: center; margin-bottom: 32px; }
+  .auth-logo h1 { font-size: 22px; font-weight: 800; color: #1a2e4a; }
+  .auth-logo p { font-size: 13px; color: #64748b; margin-top: 4px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+  .form-group input { width: 100%; padding: 12px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 15px; outline: none; transition: border-color 0.2s; }
+  .form-group input:focus { border-color: #2563eb; }
+  .btn-primary { width: 100%; padding: 14px; background: #1a2e4a; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #243a5e; }
+  .auth-switch { text-align: center; margin-top: 16px; font-size: 13px; color: #64748b; }
+  .auth-switch a { color: #2563eb; cursor: pointer; text-decoration: underline; }
+  .error-msg { background: #fef2f2; color: #dc2626; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
+
+  /* App */
+  #app-screen { display: none; }
+  .header { height: 56px; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; padding: 0 16px; gap: 12px; position: sticky; top: 0; z-index: 50; }
+  .header-menu { background: none; border: none; font-size: 22px; cursor: pointer; color: #1a2e4a; padding: 4px 6px; border-radius: 6px; }
+  .header-title { flex: 1; font-weight: 700; font-size: 15px; color: #1a2e4a; }
+  .header-badge { background: #ef4444; color: #fff; border-radius: 99px; font-size: 11px; padding: 2px 8px; font-weight: 700; }
+
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99; }
+  .sidebar { width: 220px; background: #1a2e4a; height: 100vh; display: flex; flex-direction: column; position: fixed; left: -220px; top: 0; z-index: 100; transition: left 0.25s; }
+  .sidebar.open { left: 0; }
+  .sidebar-header { padding: 24px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .sidebar-header small { font-size: 11px; color: rgba(255,255,255,0.5); letter-spacing: 2px; }
+  .sidebar-header h2 { font-size: 15px; font-weight: 700; color: #fff; margin-top: 4px; }
+  .nav-item { padding: 12px 20px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,0.65); font-size: 14px; border-left: 3px solid transparent; transition: all 0.15s; }
+  .nav-item:hover { background: rgba(255,255,255,0.08); }
+  .nav-item.active { background: rgba(255,255,255,0.12); border-left-color: #2563eb; color: #fff; font-weight: 600; }
+  .nav-icon { font-size: 16px; }
+  .sidebar-user { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: auto; }
+  .sidebar-user small { font-size: 12px; color: rgba(255,255,255,0.5); }
+  .sidebar-user p { font-size: 14px; font-weight: 600; color: #fff; margin-top: 2px; }
+  .sidebar-user span { font-size: 12px; color: rgba(255,255,255,0.45); }
+  .logout-btn { margin-top: 10px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; width: 100%; }
+
+  .main { padding: 16px; max-width: 680px; margin: 0 auto; }
+  .bottom-nav { background: #fff; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-around; padding: 8px 0; position: sticky; bottom: 0; }
+  .bottom-nav button { display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; border: none; cursor: pointer; padding: 4px 8px; color: #64748b; font-size: 10px; }
+  .bottom-nav button.active { color: #2563eb; font-weight: 700; }
+  .bottom-nav .bn-icon { font-size: 20px; }
+
+  .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 14px; }
+  .section-title { font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 600; white-space: nowrap; }
+  .badge-blue { background: #eff6ff; color: #2563eb; }
+  .badge-green { background: #ecfdf5; color: #059669; }
+  .badge-red { background: #fef2f2; color: #ef4444; }
+  .badge-yellow { background: #fffbeb; color: #d97706; }
+  .badge-gray { background: #f1f5f9; color: #64748b; }
+  .badge-navy { background: #1a2e4a; color: #fff; }
+
+  .welcome-card { background: linear-gradient(120deg, #1a2e4a, #243a5e); border-radius: 12px; padding: 20px; color: #fff; margin-bottom: 14px; }
+  .welcome-card small { font-size: 12px; opacity: 0.6; }
+  .welcome-card h2 { font-size: 18px; font-weight: 700; margin-top: 4px; }
+  .welcome-card p { font-size: 13px; opacity: 0.7; margin-top: 4px; }
+
+  .alert-card { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  .alert-card h4 { font-weight: 700; color: #ea580c; margin-bottom: 8px; font-size: 14px; }
+
+  .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+  .row:last-child { border-bottom: none; }
+  .row-title { font-weight: 600; font-size: 14px; color: #1e293b; }
+  .row-sub { font-size: 12px; color: #64748b; margin-top: 3px; }
+
+  .back-btn { background: none; border: none; color: #2563eb; cursor: pointer; font-size: 14px; margin-bottom: 16px; padding: 0; }
+  .detail-title { font-size: 18px; font-weight: 700; color: #1a2e4a; margin: 8px 0 16px; }
+  .detail-row { padding: 10px 0; border-bottom: 1px solid #f1f5f9; display: flex; gap: 16px; }
+  .detail-label { font-size: 13px; color: #64748b; width: 80px; flex-shrink: 0; }
+  .detail-value { font-size: 14px; color: #1e293b; }
+
+  .rsvp-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+  .rsvp-btn { padding: 10px 20px; border: 2px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; font-size: 14px; font-weight: 600; color: #1e293b; transition: all 0.15s; }
+  .rsvp-btn:hover { border-color: #1a2e4a; }
+  .rsvp-btn.selected-attend { background: #ecfdf5; border-color: #059669; color: #059669; }
+  .rsvp-btn.selected-absent { background: #fef2f2; border-color: #ef4444; color: #ef4444; }
+  .rsvp-btn.selected-pending { background: #fffbeb; border-color: #d97706; color: #d97706; }
+
+  .search-input { width: 100%; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; margin-bottom: 14px; }
+  .search-input:focus { border-color: #2563eb; }
+
+  .filter-btns { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-btn { padding: 5px 12px; border-radius: 20px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; background: #e2e8f0; color: #1e293b; }
+  .filter-btn.active { background: #1a2e4a; color: #fff; }
+
+  .avatar { width: 44px; height: 44px; border-radius: 50%; background: #1a2e4a; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; font-weight: 700; flex-shrink: 0; }
+  .avatar-lg { width: 64px; height: 64px; font-size: 24px; }
+
+  .member-row { display: flex; gap: 12px; align-items: center; }
+  .member-info { flex: 1; }
+  .member-name { font-weight: 700; font-size: 15px; color: #1e293b; }
+  .member-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+  .doc-row { display: flex; gap: 12px; align-items: center; }
+  .doc-icon { font-size: 28px; }
+  .doc-info { flex: 1; }
+  .doc-name { font-weight: 600; font-size: 14px; color: #1e293b; }
+  .doc-meta { font-size: 12px; color: #64748b; margin-top: 4px; }
+  .dl-btn { padding: 6px 12px; background: #1a2e4a; color: #fff; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; flex-shrink: 0; }
+
+  .form-group-inline { margin-bottom: 14px; }
+  .form-group-inline label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+  .form-group-inline input, .form-group-inline select, .form-group-inline textarea { width: 100%; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; }
+  .form-group-inline textarea { resize: vertical; min-height: 80px; }
+  .submit-btn { width: 100%; padding: 12px; background: #1a2e4a; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+
+  .loading { text-align: center; padding: 40px; color: #64748b; font-size: 14px; }
+  .empty { text-align: center; padding: 40px; color: #94a3b8; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<!-- 認証画面 -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <h1>N-MEC</h1>
+      <p>新潟市異業種交流研究会協同組合<br>会員専用プラットフォーム</p>
+    </div>
+    <div id="auth-error" class="error-msg" style="display:none"></div>
+    <div id="login-form">
+      <div class="form-group">
+        <label>メールアドレス</label>
+        <input type="email" id="login-email" placeholder="example@email.com">
+      </div>
+      <div class="form-group">
+        <label>パスワード</label>
+        <input type="password" id="login-password" placeholder="パスワードを入力">
+      </div>
+      <button class="btn-primary" onclick="login()">ログイン</button>
+      <div class="auth-switch">アカウントがない方は <a onclick="toggleForm('signup')">新規登録</a></div>
+    </div>
+    <div id="signup-form" style="display:none">
+      <div class="form-group">
+        <label>お名前</label>
+        <input type="text" id="signup-name" placeholder="田中 誠一郎">
+      </div>
+      <div class="form-group">
+        <label>会社名</label>
+        <input type="text" id="signup-company" placeholder="株式会社〇〇">
+      </div>
+      <div class="form-group">
+        <label>メールアドレス</label>
+        <input type="email" id="signup-email" placeholder="example@email.com">
+      </div>
+      <div class="form-group">
+        <label>パスワード</label>
+        <input type="password" id="signup-password" placeholder="8文字以上">
+      </div>
+      <button class="btn-primary" onclick="signup()">新規登録</button>
+      <div class="auth-switch">すでにアカウントをお持ちの方は <a onclick="toggleForm('login')">ログイン</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- アプリ画面 -->
+<div id="app-screen">
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <small>N-MEC</small>
+      <h2>会員プラットフォーム</h2>
+    </div>
+    <div style="padding:12px 0; flex:1">
+      <div class="nav-item active" id="nav-dashboard" onclick="navigate('dashboard')"><span class="nav-icon">🏠</span>ダッシュボード</div>
+      <div class="nav-item" id="nav-events" onclick="navigate('events')"><span class="nav-icon">📅</span>例会・委員会</div>
+      <div class="nav-item" id="nav-motions" onclick="navigate('motions')"><span class="nav-icon">📋</span>議案・議事録</div>
+      <div class="nav-item" id="nav-members" onclick="navigate('members')"><span class="nav-icon">👥</span>会員一覧</div>
+      <div class="nav-item" id="nav-documents" onclick="navigate('documents')"><span class="nav-icon">📁</span>資料ライブラリ</div>
+      <div class="nav-item" id="nav-notices" onclick="navigate('notices')"><span class="nav-icon">🔔</span>お知らせ</div>
+    </div>
+    <div class="sidebar-user">
+      <small id="sb-role">—</small>
+      <p id="sb-name">—</p>
+      <span id="sb-company">—</span>
+      <button class="logout-btn" onclick="logout()">ログアウト</button>
+    </div>
+  </div>
+
+  <div class="header">
+    <button class="header-menu" onclick="toggleSidebar()">☰</button>
+    <div class="header-title" id="header-title">ダッシュボード</div>
+    <div class="header-badge" id="header-badge" style="display:none"></div>
+  </div>
+
+  <div class="main" id="main-content"></div>
+
+  <div class="bottom-nav">
+    <button onclick="navigate('dashboard')" id="bn-dashboard" class="active"><span class="bn-icon">🏠</span>ホーム</button>
+    <button onclick="navigate('events')" id="bn-events"><span class="bn-icon">📅</span>例会</button>
+    <button onclick="navigate('motions')" id="bn-motions"><span class="bn-icon">📋</span>議案</button>
+    <button onclick="navigate('members')" id="bn-members"><span class="bn-icon">👥</span>会員</button>
+    <button onclick="navigate('notices')" id="bn-notices"><span class="bn-icon">🔔</span>お知らせ</button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://cadindivyghcjlbetsoi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhZGluZGl2eWdoY2psYmV0c29pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTgzMDQsImV4cCI6MjA5MDM5NDMwNH0.teIhuA9o6NsuLE_QmYsIYmISf0dxG0FsCBQHPkixm2c';
+const API = SUPABASE_URL + '/rest/v1';
+const AUTH = SUPABASE_URL + '/auth/v1';
+
+let currentUser = null;
+let currentProfile = null;
+let currentPage = 'dashboard';
+let accessToken = null;
+
+const headers = () => ({
+  'Content-Type': 'application/json',
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${accessToken || SUPABASE_KEY}`
+});
+
+// ==================== AUTH ====================
+function toggleForm(type) {
+  document.getElementById('login-form').style.display = type === 'login' ? 'block' : 'none';
+  document.getElementById('signup-form').style.display = type === 'signup' ? 'block' : 'none';
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+async function login() {
+  const email = document.getElementById('login-email').value;
+  const pw = document.getElementById('login-password').value;
+  try {
+    const res = await axios.post(`${AUTH}/token?grant_type=password`, { email, password: pw }, { headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY } });
+    accessToken = res.data.access_token;
+    currentUser = res.data.user;
+    await loadProfile();
+    showApp();
+  } catch(e) {
+    showError('メールアドレスまたはパスワードが正しくありません');
+  }
+}
+
+async function signup() {
+  const name = document.getElementById('signup-name').value;
+  const company = document.getElementById('signup-company').value;
+  const email = document.getElementById('signup-email').value;
+  const pw = document.getElementById('signup-password').value;
+  if (!name || !email || !pw) { showError('必須項目を入力してください'); return; }
+  try {
+    const res = await axios.post(`${AUTH}/signup`, { email, password: pw }, { headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY } });
+    accessToken = res.data.access_token;
+    currentUser = res.data.user;
+    // プロフィール作成
+    await axios.post(`${API}/users`, { id: currentUser.id, email, name, company, role: 'member' }, { headers: headers() });
+    await loadProfile();
+    showApp();
+  } catch(e) {
+    showError('登録に失敗しました。メールアドレスをご確認ください。');
+  }
+}
+
+async function logout() {
+  try { await axios.post(`${AUTH}/logout`, {}, { headers: headers() }); } catch(e) {}
+  accessToken = null; currentUser = null; currentProfile = null;
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+}
+
+async function loadProfile() {
+  try {
+    const res = await axios.get(`${API}/users?id=eq.${currentUser.id}`, { headers: headers() });
+    currentProfile = res.data[0] || { name: currentUser.email, role: 'member', company: '' };
+  } catch(e) { currentProfile = { name: currentUser.email, role: 'member', company: '' }; }
+}
+
+function showError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  document.getElementById('sb-name').textContent = currentProfile.name || '—';
+  document.getElementById('sb-company').textContent = currentProfile.company || '—';
+  document.getElementById('sb-role').textContent = roleLabel(currentProfile.role);
+  navigate('dashboard');
+}
+
+function roleLabel(r) {
+  return { admin:'管理者', office:'事務局', director:'理事・委員長', member:'一般会員' }[r] || r;
+}
+
+// ==================== NAVIGATION ====================
+function navigate(page) {
+  currentPage = page;
+  closeSidebar();
+  const titles = { dashboard:'ダッシュボード', events:'例会・委員会', motions:'議案・議事録', members:'会員一覧', documents:'資料ライブラリ', notices:'お知らせ' };
+  document.getElementById('header-title').textContent = titles[page] || '';
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav button').forEach(el => el.classList.remove('active'));
+  const ni = document.getElementById('nav-' + page);
+  const bi = document.getElementById('bn-' + page);
+  if (ni) ni.classList.add('active');
+  if (bi) bi.classList.add('active');
+  const pages = { dashboard: renderDashboard, events: renderEvents, motions: renderMotions, members: renderMembers, documents: renderDocuments, notices: renderNotices };
+  if (pages[page]) pages[page]();
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').style.display = document.getElementById('sidebar').classList.contains('open') ? 'block' : 'none';
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').style.display = 'none';
+}
+
+// ==================== DASHBOARD ====================
+async function renderDashboard() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading">読み込み中...</div>';
+  try {
+    const [evRes, notRes] = await Promise.all([
+      axios.get(`${API}/events?status=eq.published&order=date.asc&limit=3`, { headers: headers() }),
+      axios.get(`${API}/notices?order=created_at.desc&limit=3`, { headers: headers() })
+    ]);
+    const events = evRes.data;
+    const notices = notRes.data;
+    let html = `
+      <div class="welcome-card">
+        <small>ようこそ</small>
+        <h2>${currentProfile.name || ''} さん</h2>
+        <p>${currentProfile.company || ''} | ${roleLabel(currentProfile.role)}</p>
+      </div>`;
+
+    if (events.length > 0) {
+      html += `<div class="card"><div class="section-title">📅 次回の予定</div>`;
+      events.forEach(e => {
+        const d = new Date(e.date);
+        const dateStr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+        html += `<div class="row" onclick="showEventDetail('${e.id}')" style="cursor:pointer">
+          <div><div class="row-title">${e.title}</div><div class="row-sub">🕐 ${dateStr}　📍 ${e.location||''}</div></div>
+          <span class="badge badge-blue">${typeLabel(e.type)}</span>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    if (notices.length > 0) {
+      html += `<div class="card"><div class="section-title">🔔 新着お知らせ</div>`;
+      notices.forEach(n => {
+        const d = new Date(n.created_at);
+        const dateStr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+        html += `<div class="row" onclick="showNoticeDetail('${n.id}')" style="cursor:pointer">
+          <div>
+            ${n.priority==='important' ? '<span class="badge badge-red" style="margin-bottom:4px">重要</span><br>' : ''}
+            <div class="row-title">${n.title}</div>
+            <div class="row-sub">${dateStr}</div>
+          </div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    if (events.length === 0 && notices.length === 0) {
+      html += `<div class="empty">データがまだありません<br><small>事務局がデータを登録すると表示されます</small></div>`;
+    }
+
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div class="empty">データの読み込みに失敗しました</div>';
+  }
+}
+
+// ==================== EVENTS ====================
+function typeLabel(t) {
+  return { reikai:'例会', iinkai:'委員会', soukai:'総会', koryu:'交流会', other:'その他' }[t] || t;
+}
+
+async function renderEvents() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading">読み込み中...</div>';
+  try {
+    const res = await axios.get(`${API}/events?order=date.desc`, { headers: headers() });
+    const events = res.data;
+    const canCreate = ['admin','office','director'].includes(currentProfile.role);
+    let html = `<div class="filter-btns">
+      <button class="filter-btn active" onclick="filterEvents('all',this)">すべて</button>
+      <button class="filter-btn" onclick="filterEvents('reikai',this)">例会</button>
+      <button class="filter-btn" onclick="filterEvents('iinkai',this)">委員会</button>
+    </div>`;
+    if (canCreate) html += `<button class="submit-btn" style="margin-bottom:14px" onclick="showEventForm()">＋ 例会・委員会を作成</button>`;
+    html += `<div id="events-list">`;
+    events.forEach(e => { html += eventCard(e); });
+    html += `</div>`;
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function eventCard(e) {
+  const d = new Date(e.date);
+  const dateStr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+  const statusBadge = e.status === 'done' ? '<span class="badge badge-gray">終了</span>' : '<span class="badge badge-green">開催予定</span>';
+  return `<div class="card" data-type="${e.type}" onclick="showEventDetail('${e.id}')" style="cursor:pointer">
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:4px">
+      <span class="badge badge-blue">${typeLabel(e.type)}</span>${statusBadge}
+    </div>
+    <div class="row-title" style="font-size:15px;margin-bottom:6px">${e.title}</div>
+    <div class="row-sub">🕐 ${dateStr}　📍 ${e.location||'場所未定'}</div>
+  </div>`;
+}
+
+function filterEvents(type, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('#events-list .card').forEach(card => {
+    card.style.display = (type === 'all' || card.dataset.type === type) ? 'block' : 'none';
+  });
+}
+
+async function showEventDetail(id) {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading">読み込み中...</div>';
+  try {
+    const [eRes, aRes] = await Promise.all([
+      axios.get(`${API}/events?id=eq.${id}`, { headers: headers() }),
+      axios.get(`${API}/attendances?event_id=eq.${id}&user_id=eq.${currentUser.id}`, { headers: headers() })
+    ]);
+    const e = eRes.data[0];
+    const myAtt = aRes.data[0];
+    const d = new Date(e.date);
+    const dateStr = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const agenda = e.agenda || [];
+    let rsvpHtml = '';
+    if (e.status === 'published') {
+      if (myAtt) {
+        const cls = { attend:'badge-green', absent:'badge-red', pending:'badge-yellow' }[myAtt.status];
+        const lbl = { attend:'出席', absent:'欠席', pending:'保留' }[myAtt.status];
+        rsvpHtml = `<div class="card"><div class="section-title">✋ 出欠回答</div>
+          <p style="font-size:13px;color:#64748b;margin-bottom:8px">回答済み：<span class="badge ${cls}">${lbl}</span></p>
+          <div class="rsvp-btns">
+            <button class="rsvp-btn" onclick="submitRsvp('${id}','attend','${myAtt.id}')">✅ 出席</button>
+            <button class="rsvp-btn" onclick="submitRsvp('${id}','absent','${myAtt.id}')">❌ 欠席</button>
+            <button class="rsvp-btn" onclick="submitRsvp('${id}','pending','${myAtt.id}')">🤔 保留</button>
+          </div></div>`;
+      } else {
+        rsvpHtml = `<div class="card"><div class="section-title">✋ 出欠回答</div>
+          <div class="rsvp-btns">
+            <button class="rsvp-btn" onclick="submitRsvp('${id}','attend',null)">✅ 出席</button>
+            <button class="rsvp-btn" onclick="submitRsvp('${id}','absent',null)">❌ 欠席</button>
+            <button class="rsvp-btn" onclick="submitRsvp('${id}','pending',null)">🤔 保留</button>
+          </div></div>`;
+      }
+    }
+    let agendaHtml = '';
+    if (agenda.length > 0) {
+      agendaHtml = `<div class="card"><div class="section-title">📝 アジェンダ</div>`;
+      agenda.forEach((a, i) => {
+        agendaHtml += `<div class="row"><span style="color:#2563eb;font-weight:700;margin-right:8px">${i+1}.</span>${a}</div>`;
+      });
+      agendaHtml += `</div>`;
+    }
+    el.innerHTML = `
+      <button class="back-btn" onclick="navigate('events')">← 一覧に戻る</button>
+      <div class="card">
+        <span class="badge badge-blue">${typeLabel(e.type)}</span>
+        <div class="detail-title">${e.title}</div>
+        <div class="detail-row"><span class="detail-label">日時</span><span class="detail-value">🕐 ${dateStr}</span></div>
+        <div class="detail-row"><span class="detail-label">場所</span><span class="detail-value">📍 ${e.location||'未定'}</span></div>
+        ${e.description ? `<div class="detail-row"><span class="detail-label">概要</span><span class="detail-value">${e.description}</span></div>` : ''}
+        ${e.rsvp_deadline ? `<div class="detail-row"><span class="detail-label">出欠締切</span><span class="detail-value" style="color:#ef4444">⏰ ${new Date(e.rsvp_deadline).toLocaleDateString('ja-JP')}</span></div>` : ''}
+      </div>
+      ${rsvpHtml}
+      ${agendaHtml}`;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+async function submitRsvp(eventId, status, existingId) {
+  try {
+    if (existingId) {
+      await axios.patch(`${API}/attendances?id=eq.${existingId}`, { status, responded_at: new Date().toISOString() }, { headers: { ...headers(), 'Prefer': 'return=minimal' } });
+    } else {
+      await axios.post(`${API}/attendances`, { event_id: eventId, user_id: currentUser.id, status }, { headers: headers() });
+    }
+    showEventDetail(eventId);
+  } catch(e) { alert('回答の送信に失敗しました'); }
+}
+
+function showEventForm() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = `
+    <button class="back-btn" onclick="navigate('events')">← 一覧に戻る</button>
+    <div class="card">
+      <div class="section-title">📅 例会・委員会を作成</div>
+      <div class="form-group-inline"><label>タイトル *</label><input type="text" id="ev-title" placeholder="第149回 定例例会"></div>
+      <div class="form-group-inline"><label>種別</label>
+        <select id="ev-type">
+          <option value="reikai">例会</option>
+          <option value="iinkai">委員会</option>
+          <option value="soukai">総会</option>
+          <option value="koryu">交流会</option>
+          <option value="other">その他</option>
+        </select>
+      </div>
+      <div class="form-group-inline"><label>日時 *</label><input type="datetime-local" id="ev-date"></div>
+      <div class="form-group-inline"><label>場所</label><input type="text" id="ev-location" placeholder="万代シルバーホテル 3F"></div>
+      <div class="form-group-inline"><label>概要</label><textarea id="ev-desc" placeholder="内容の説明"></textarea></div>
+      <div class="form-group-inline"><label>出欠締切日</label><input type="datetime-local" id="ev-deadline"></div>
+      <button class="submit-btn" id="create-event-btn" onclick="submitNewEvent()">作成する</button>
+    </div>`;
+}
+
+async function submitNewEvent() {
+  const title = document.getElementById('ev-title').value;
+  const date = document.getElementById('ev-date').value;
+  if (!title || !date) { alert('タイトルと日時は必須です'); return; }
+  try {
+    await axios.post(`${API}/events`, {
+      title, type: document.getElementById('ev-type').value,
+      date: new Date(date).toISOString(),
+      location: document.getElementById('ev-location').value,
+      description: document.getElementById('ev-desc').value,
+      rsvp_deadline: document.getElementById('ev-deadline').value ? new Date(document.getElementById('ev-deadline').value).toISOString() : null,
+      status: 'published', created_by: currentUser.id
+    }, { headers: headers() });
+    alert('作成しました！');
+    navigate('events');
+  } catch(e) { alert('作成に失敗しました'); }
+}
+
+// ==================== MOTIONS ====================
+async function renderMotions() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading">読み込み中...</div>';
+  try {
+    const res = await axios.get(`${API}/motions?order=created_at.desc`, { headers: headers() });
+    const motions = res.data;
+    const canCreate = ['admin','office','director'].includes(currentProfile.role);
+    let html = canCreate ? `<button class="submit-btn" style="margin-bottom:14px" onclick="showMotionForm()">＋ 議案を登録</button>` : '';
+    if (motions.length === 0) { html += '<div class="empty">議案がまだありません</div>'; }
+    motions.forEach(m => {
+      const statusMap = { draft:['badge-gray','草案'], review:['badge-blue','確認中'], approved:['badge-green','承認済'], pending:['badge-yellow','保留'], done:['badge-navy','完了'] };
+      const [cls, lbl] = statusMap[m.status] || ['badge-gray', m.status];
+      html += `<div class="card">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span class="badge ${cls}">${lbl}</span>
+        </div>
+        <div class="row-title" style="font-size:15px;margin-bottom:4px">${m.title}</div>
+        ${m.content ? `<div class="row-sub">${m.content.substring(0,60)}...</div>` : ''}
+      </div>`;
+    });
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function showMotionForm() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = `
+    <button class="back-btn" onclick="navigate('motions')">← 一覧に戻る</button>
+    <div class="card">
+      <div class="section-title">📋 議案を登録</div>
+      <div class="form-group-inline"><label>議案タイトル *</label><input type="text" id="mo-title" placeholder="2026年度 事業計画の承認"></div>
+      <div class="form-group-inline"><label>内容</label><textarea id="mo-content" placeholder="議案の詳細内容"></textarea></div>
+      <div class="form-group-inline"><label>ステータス</label>
+        <select id="mo-status">
+          <option value="draft">草案</option>
+          <option value="review">確認中</option>
+          <option value="approved">承認済</option>
+        </select>
+      </div>
+      <button class="submit-btn" onclick="createMotion()">登録する</button>
+    </div>`;
+}
+
+async function createMotion() {
+  const title = document.getElementById('mo-title').value;
+  if (!title) { alert('タイトルは必須です'); return; }
+  try {
+    await axios.post(`${API}/motions`, { title, content: document.getElementById('mo-content').value, status: document.getElementById('mo-status').value, created_by: currentUser.id }, { headers: headers() });
+    alert('登録しました！');
+    navigate('motions');
+  } catch(e) { alert('登録に失敗しました'); }
+}
+
+// ==================== MEMBERS ====================
+async function renderMembers() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading">読み込み中...</div>';
+  try {
+    const res = await axios.get(`${API}/users?is_active=eq.true&order=name.asc`, { headers: headers() });
+    const members = res.data;
+    let html = `<input class="search-input" placeholder="名前・会社名で検索..." oninput="filterMembers(this.value)" id="member-search">
+      <div id="members-list">`;
+    members.forEach(m => { html += memberCard(m); });
+    html += `</div>`;
+    el.innerHTML = html;
+    el._members = members;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function memberCard(m) {
+  const initial = (m.name || '?').charAt(0);
+  return `<div class="card" onclick="showMemberDetail('${m.id}')" style="cursor:pointer" data-name="${m.name||''}" data-company="${m.company||''}">
+    <div class="member-row">
+      <div class="avatar">${initial}</div>
+      <div class="member-info">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px">
+          <div class="member-name">${m.name||'—'}</div>
+          <span class="badge badge-blue">${roleLabel(m.role)}</span>
+        </div>
+        <div class="member-sub">${m.company||''} | ${m.industry||'—'}</div>
+        <div class="member-sub">${m.committee||''}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function filterMembers(q) {
+  const lq = q.toLowerCase();
+  document.querySelectorAll('#members-list .card').forEach(card => {
+    const name = (card.dataset.name || '').toLowerCase();
+    const company = (card.dataset.company || '').toLowerCase();
+    card.style.display = (name.includes(lq) || company.includes(lq)) ? 'block' : 'none';
+  });
+}
+
+async function showMemberDetail(id) {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading">読み込み中...</div>';
+  try {
+    const res = await axios.get(`${API}/users?id=eq.${id}`, { headers: headers() });
+    const m = res.data[0];
+    const initial = (m.name || '?').charAt(0);
+    const canSeeContact = ['admin','office','director'].includes(currentProfile.role) || currentUser.id === id;
+    el.innerHTML = `
+      <button class="back-btn" onclick="navigate('members')">← 一覧に戻る</button>
+      <div class="card">
+        <div style="display:flex;gap:16px;align-items:center;margin-bottom:16px">
+          <div class="avatar avatar-lg">${initial}</div>
+          <div>
+            <div style="font-size:20px;font-weight:700;color:#1a2e4a">${m.name||'—'}</div>
+            <div style="font-size:14px;color:#64748b;margin-top:4px">${m.company||''}</div>
+            <div style="margin-top:6px"><span class="badge badge-blue">${roleLabel(m.role)}</span></div>
+          </div>
+        </div>
+        ${row('業種', m.industry||'—')}
+        ${row('所属委員会', m.committee||'—')}
+        ${row('役職', m.position||'—')}
+        ${canSeeContact ? row('メール', m.email||'—') : row('メール', '（閲覧権限なし）')}
+        ${canSeeContact ? row('電話', m.phone||'—') : ''}
+        ${m.bio ? row('自己紹介', m.bio) : ''}
+        ${row('入会年', m.joined_year ? m.joined_year+'年' : '—')}
+      </div>`;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function row(label, value) {
+  return `<div class="detail-row"><span class="detail-label">${label}</span><span class="detail-value">${value}</span></div>`;
+}
+
+// ==================== NOTICES ====================
+async function renderNotices() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading">読み込み中...</div>';
+  try {
+    const res = await axios.get(`${API}/notices?order=created_at.desc`, { headers: headers() });
+    const notices = res.data;
+    const canCreate = ['admin','office'].includes(currentProfile.role);
+    let html = canCreate ? `<button class="submit-btn" style="margin-bottom:14px" onclick="showNoticeForm()">＋ お知らせを投稿</button>` : '';
+    if (notices.length === 0) { html += '<div class="empty">お知らせがまだありません</div>'; }
+    notices.forEach(n => {
+      const d = new Date(n.created_at);
+      const dateStr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+      html += `<div class="card" onclick="showNoticeDetail('${n.id}')" style="cursor:pointer">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <div style="display:flex;gap:6px">
+            ${n.priority==='important' ? '<span class="badge badge-red">重要</span>' : ''}
+            <span class="badge badge-gray">全会員</span>
+          </div>
+          <span style="font-size:12px;color:#64748b">${dateStr}</span>
+        </div>
+        <div style="font-weight:${n.priority==='important'?700:500};font-size:15px;color:#1e293b">${n.title}</div>
+      </div>`;
+    });
+    el.innerHTML = html;
+    el._notices = notices;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+async function showNoticeDetail(id) {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading">読み込み中...</div>';
+  try {
+    const res = await axios.get(`${API}/notices?id=eq.${id}`, { headers: headers() });
+    const n = res.data[0];
+    const d = new Date(n.created_at);
+    const dateStr = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+    el.innerHTML = `
+      <button class="back-btn" onclick="navigate('notices')">← 一覧に戻る</button>
+      <div class="card">
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+          ${n.priority==='important' ? '<span class="badge badge-red">重要</span>' : ''}
+          <span style="font-size:12px;color:#64748b">${dateStr}</span>
+        </div>
+        <div style="font-size:18px;font-weight:700;color:#1a2e4a;margin-bottom:16px">${n.title}</div>
+        <div style="font-size:14px;color:#1e293b;line-height:1.8;white-space:pre-line">${n.body||''}</div>
+      </div>`;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function showNoticeForm() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = `
+    <button class="back-btn" onclick="navigate('notices')">← 一覧に戻る</button>
+    <div class="card">
+      <div class="section-title">🔔 お知らせを投稿</div>
+      <div class="form-group-inline"><label>タイトル *</label><input type="text" id="no-title" placeholder="タイトルを入力"></div>
+      <div class="form-group-inline"><label>本文</label><textarea id="no-body" placeholder="内容を入力" style="min-height:120px"></textarea></div>
+      <div class="form-group-inline"><label>優先度</label>
+        <select id="no-priority">
+          <option value="normal">通常</option>
+          <option value="important">重要</option>
+        </select>
+      </div>
+      <button class="submit-btn" onclick="createNotice()">投稿する</button>
+    </div>`;
+}
+
+async function createNotice() {
+  const title = document.getElementById('no-title').value;
+  if (!title) { alert('タイトルは必須です'); return; }
+  try {
+    await axios.post(`${API}/notices`, { title, body: document.getElementById('no-body').value, priority: document.getElementById('no-priority').value, created_by: currentUser.id }, { headers: headers() });
+    alert('投稿しました！');
+    navigate('notices');
+  } catch(e) { alert('投稿に失敗しました'); }
+}
+
+// ==================== DOCUMENTS ====================
+async function renderDocuments() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading">読み込み中...</div>';
+  try {
+    const res = await axios.get(`${API}/documents?order=created_at.desc`, { headers: headers() });
+    const docs = res.data;
+    const catLabels = { kiyaku:'規約・定款', gian:'議案資料', reikai:'例会資料', iinkai:'委員会資料', jigyou:'事業計画', gijiroku:'議事録', other:'その他' };
+    let html = `<div class="filter-btns">
+      <button class="filter-btn active" onclick="filterDocs('all',this)">すべて</button>
+      <button class="filter-btn" onclick="filterDocs('reikai',this)">例会資料</button>
+      <button class="filter-btn" onclick="filterDocs('gijiroku',this)">議事録</button>
+      <button class="filter-btn" onclick="filterDocs('kiyaku',this)">規約</button>
+    </div><div id="docs-list">`;
+    if (docs.length === 0) { html += '<div class="empty">資料がまだありません</div>'; }
+    docs.forEach(d => {
+      html += `<div class="card" data-cat="${d.category}">
+        <div class="doc-row">
+          <div class="doc-icon">📄</div>
+          <div class="doc-info">
+            <div class="doc-name">${d.name}</div>
+            <div class="doc-meta">
+              <span class="badge badge-blue">${catLabels[d.category]||d.category}</span>
+              <span style="margin-left:8px">${d.year||''}年 | ${d.file_size||''}</span>
+            </div>
+          </div>
+          <a href="${d.file_url}" target="_blank"><button class="dl-btn">表示</button></a>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function filterDocs(cat, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('#docs-list .card').forEach(card => {
+    card.style.display = (cat === 'all' || card.dataset.cat === cat) ? 'block' : 'none';
+  });
+}
+</script>
+</body>
+</html>
