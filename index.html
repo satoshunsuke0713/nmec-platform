@@ -184,7 +184,7 @@ body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; bac
     <div style="padding:12px 0;flex:1;overflow-y:auto">
       <div class="nav-item active" id="nav-dashboard" onclick="navigate('dashboard')"><span class="nav-icon">🏠</span>ダッシュボード</div>
       <div class="nav-item" id="nav-events" onclick="navigate('events')"><span class="nav-icon">📅</span>三役・理事会・例会</div>
-      <div class="nav-item" id="nav-motions" onclick="navigate('motions')"><span class="nav-icon">📋</span>アジェンダ・議事録</div>
+      <div class="nav-item" id="nav-motions" onclick="navigate('motions')"><span class="nav-icon">📁</span>資料</div>
       <div class="nav-item" id="nav-members" onclick="navigate('members')"><span class="nav-icon">👥</span>理事メンバー</div>
       <div class="nav-item" id="nav-committees" onclick="navigate('committees')"><span class="nav-icon">🏛️</span>委員会管理</div>
       <div class="nav-item" id="nav-documents" onclick="navigate('documents')"><span class="nav-icon">📁</span>資料ライブラリ</div>
@@ -221,8 +221,8 @@ body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; bac
       会議・事業
     </button>
     <button onclick="navigate('motions')" id="bn-motions">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      アジェンダ
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      資料
     </button>
     <button onclick="navigate('members')" id="bn-members">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -311,7 +311,7 @@ function fmtDateShort(d) { const dt = new Date(d); return dt.getFullYear() + '/'
 function navigate(page) {
   currentPage = page;
   closeSidebar();
-  const titles = { dashboard:'ダッシュボード', events:'会議・事業', motions:'アジェンダ・議事録', members:'理事メンバー', documents:'資料ライブラリ', notices:'お知らせ', committees:'委員会管理' };
+  const titles = { dashboard:'ダッシュボード', events:'会議・事業', motions:'資料', members:'理事メンバー', documents:'資料ライブラリ', notices:'お知らせ', committees:'委員会管理' };
   document.getElementById('header-title').textContent = titles[page] || '';
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.bottom-nav button').forEach(el => el.classList.remove('active'));
@@ -493,31 +493,51 @@ async function renderMotions() {
   const el = document.getElementById('main-content');
   el.innerHTML = '<div class="loading"></div>';
   try {
-    const res = await axios.get(API + '/motions?order=created_at.desc', { headers: hdrs() });
-    const canCreate = ['admin','office','director'].includes(currentProfile.role);
-    let html = canCreate ? '<button class="submit-btn-outline" onclick="showMotionForm()">＋ 議案を登録</button>' : '';
-    if (res.data.length === 0) html += '<div class="empty">議案がまだありません</div>';
-    const statusMap = { draft:['badge-gray','草案'], review:['badge-dark','確認中'], approved:['badge-green','承認済'], pending:['badge-gray','保留'], done:['badge-red','完了'] };
-    res.data.forEach(function(m) {
-      const s = statusMap[m.status] || ['badge-gray', m.status];
-      html += '<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><span class="badge ' + s[0] + '">' + s[1] + '</span></div><div class="row-title" style="font-size:16px;margin-bottom:6px">' + m.title + '</div>' + (m.content ? '<div class="row-sub">' + m.content.substring(0,80) + '...</div>' : '') + '</div>';
-    });
+    const res = await axios.get(API + '/documents?order=created_at.desc', { headers: hdrs() });
+    const docs = res.data;
+    const catLabels = { kiyaku:'規約・定款', gian:'議案資料', reikai:'例会資料', iinkai:'委員会資料', jigyou:'事業計画', gijiroku:'議事録', other:'その他' };
+
+    let html = '<div class="filter-btns"><button class="filter-btn active" onclick="filterMotionDocs(\'all\',this)">すべて</button><button class="filter-btn" onclick="filterMotionDocs(\'gijiroku\',this)">議事録</button><button class="filter-btn" onclick="filterMotionDocs(\'reikai\',this)">例会資料</button><button class="filter-btn" onclick="filterMotionDocs(\'iinkai\',this)">委員会資料</button><button class="filter-btn" onclick="filterMotionDocs(\'other\',this)">その他</button></div>';
+    html += '<input class="search-input" placeholder="🔍 ファイル名で検索..." oninput="filterMotionDocsByName(this.value)">';
+    html += '<div id="motions-docs-list">';
+
+    if (docs.length === 0) {
+      html += '<div class="empty">資料がまだありません<br><small>会議詳細画面からアップロードできます</small></div>';
+    } else {
+      docs.forEach(function(d) {
+        html += '<div class="card" data-cat="' + d.category + '" data-name="' + (d.name||'') + '">' +
+          '<div class="doc-row">' +
+          '<div style="font-size:32px">' + (d.file_url && d.file_url.includes('.pdf') ? '📕' : '📄') + '</div>' +
+          '<div class="doc-info">' +
+          '<div class="doc-name">' + d.name + '</div>' +
+          '<div class="doc-meta" style="margin-top:6px">' +
+          '<span class="badge badge-red">' + (catLabels[d.category]||d.category) + '</span>' +
+          '<span style="margin-left:8px;font-size:12px;color:var(--text-mid)">' + fmtDateShort(d.created_at) + '</span>' +
+          (d.file_size ? '<span style="margin-left:8px;font-size:12px;color:var(--text-mid)">' + d.file_size + '</span>' : '') +
+          '</div>' +
+          '</div>' +
+          '<a href="' + d.file_url + '" target="_blank"><button class="dl-btn">表示</button></a>' +
+          '</div></div>';
+      });
+    }
+    html += '</div>';
     el.innerHTML = html;
   } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
 }
 
-function showMotionForm() {
-  const el = document.getElementById('main-content');
-  el.innerHTML = '<button class="back-btn" onclick="navigate(\'motions\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">📋 議案を登録</div><div class="form-group-inline"><label>議案タイトル *</label><input type="text" id="mo-title" placeholder="2026年度 事業計画の承認"></div><div class="form-group-inline"><label>内容</label><textarea id="mo-content" placeholder="議案の詳細内容"></textarea></div><div class="form-group-inline"><label>ステータス</label><select id="mo-status"><option value="draft">草案</option><option value="review">確認中</option><option value="approved">承認済</option></select></div><button class="submit-btn" onclick="submitNewMotion()">登録する</button></div>';
+function filterMotionDocs(cat, btn) {
+  document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  document.querySelectorAll('#motions-docs-list .card').forEach(function(card) {
+    card.style.display = (cat === 'all' || card.dataset.cat === cat) ? 'block' : 'none';
+  });
 }
 
-async function submitNewMotion() {
-  const title = document.getElementById('mo-title').value;
-  if (!title) { alert('タイトルは必須です'); return; }
-  try {
-    await axios.post(API + '/motions', { title, content: document.getElementById('mo-content').value, status: document.getElementById('mo-status').value, created_by: currentUser.id }, { headers: hdrs() });
-    alert('登録しました！'); navigate('motions');
-  } catch(e) { alert('登録に失敗しました'); }
+function filterMotionDocsByName(q) {
+  const lq = q.toLowerCase();
+  document.querySelectorAll('#motions-docs-list .card').forEach(function(card) {
+    card.style.display = (card.dataset.name||'').toLowerCase().includes(lq) ? 'block' : 'none';
+  });
 }
 
 async function renderMembers() {
