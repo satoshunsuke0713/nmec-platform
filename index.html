@@ -377,7 +377,40 @@ async function renderEvents() {
 
 function eventCard(e) {
   const statusBadge = e.status === 'done' ? '<span class="badge badge-gray">終了</span>' : '<span class="badge badge-green">開催予定</span>';
-  return '<div class="card" data-type="' + e.type + '" onclick="showEventDetail(\'' + e.id + '\')" style="cursor:pointer"><div style="display:flex;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px"><span class="badge badge-red">' + typeLabel(e.type) + '</span>' + statusBadge + '</div><div class="row-title" style="font-size:17px;margin-bottom:8px">' + e.title + '</div><div class="row-sub">🕐 ' + fmtDate(e.date) + '　📍 ' + (e.location||'場所未定') + '</div>' + (e.committee ? '<div class="row-sub" style="margin-top:4px">🏛️ ' + e.committee + '</div>' : '') + '</div>';
+  const canEdit = ['admin','office','director'].includes(currentProfile ? currentProfile.role : '');
+  return '<div class="card" data-type="' + e.type + '"><div style="display:flex;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px"><div style="display:flex;gap:6px"><span class="badge badge-red">' + typeLabel(e.type) + '</span>' + statusBadge + '</div>' + (canEdit ? '<div style="display:flex;gap:6px"><button onclick="showEventEditForm(\'' + e.id + '\')" style="background:none;border:1px solid var(--gray-mid);border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text-mid)">編集</button><button onclick="deleteEvent(\'' + e.id + '\')" style="background:none;border:1px solid #ccc;border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer;color:#999">削除</button></div>' : '') + '</div><div class="row-title" style="font-size:17px;margin-bottom:8px;cursor:pointer" onclick="showEventDetail(\'' + e.id + '\')">' + e.title + '</div><div class="row-sub" onclick="showEventDetail(\'' + e.id + '\')" style="cursor:pointer">🕐 ' + fmtDate(e.date) + '　📍 ' + (e.location||'場所未定') + '</div>' + (e.committee ? '<div class="row-sub" style="margin-top:4px">🏛️ ' + e.committee + '</div>' : '') + '</div>';
+}
+
+async function deleteEvent(id) {
+  if (!confirm('この会議・事業を削除しますか？')) return;
+  try {
+    await axios.delete(API + '/events?id=eq.' + id, { headers: hdrs() });
+    navigate('events');
+  } catch(e) { alert('削除に失敗しました'); }
+}
+
+async function showEventEditForm(id) {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const eRes = await axios.get(API + '/events?id=eq.' + id, { headers: hdrs() });
+    const e = eRes.data[0];
+    const cRes = await axios.get(API + '/committees?order=sort_order.asc', { headers: hdrs() });
+    const committeeOptions = cRes.data.map(function(c) { return '<option value="' + c.name + '"' + (e.committee===c.name?' selected':'') + '>' + c.name + '</option>'; }).join('');
+    const dt = new Date(e.date);
+    const dtLocal = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0') + 'T' + String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0');
+    el.innerHTML = '<button class="back-btn" onclick="navigate(\'events\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">📅 会議・事業を編集</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="ev-title" value="' + e.title + '"></div><div class="form-group-inline"><label>種別 *</label><select id="ev-type"><option value="sanyaku"' + (e.type==='sanyaku'?' selected':'') + '>三役会議</option><option value="rijikai"' + (e.type==='rijikai'?' selected':'') + '>理事会</option><option value="reikai"' + (e.type==='reikai'?' selected':'') + '>例会</option><option value="iinkai"' + (e.type==='iinkai'?' selected':'') + '>委員会</option><option value="jigyou"' + (e.type==='jigyou'?' selected':'') + '>その他事業</option><option value="other"' + (e.type==='other'?' selected':'') + '>その他</option></select></div><div class="form-group-inline"><label>担当委員会</label><select id="ev-committee"><option value="">なし（全体）</option>' + committeeOptions + '</select></div><div class="form-group-inline"><label>日時 *</label><input type="datetime-local" id="ev-date" value="' + dtLocal + '"></div><div class="form-group-inline"><label>場所</label><input type="text" id="ev-location" value="' + (e.location||'') + '"></div><div class="form-group-inline"><label>概要</label><textarea id="ev-desc">' + (e.description||'') + '</textarea></div><button class="submit-btn" onclick="updateEvent(\'' + id + '\')">更新する</button></div>';
+  } catch(e) { alert('読み込みに失敗しました'); }
+}
+
+async function updateEvent(id) {
+  const title = document.getElementById('ev-title').value;
+  const date = document.getElementById('ev-date').value;
+  if (!title || !date) { alert('タイトルと日時は必須です'); return; }
+  try {
+    await axios.patch(API + '/events?id=eq.' + id, { title, type: document.getElementById('ev-type').value, date: new Date(date).toISOString(), location: document.getElementById('ev-location').value, description: document.getElementById('ev-desc').value, committee: document.getElementById('ev-committee').value || null }, { headers: Object.assign({}, hdrs(), { 'Prefer': 'return=minimal' }) });
+    alert('更新しました！'); navigate('events');
+  } catch(e) { alert('更新に失敗しました'); }
 }
 
 function filterEvents(type, btn) {
@@ -645,10 +678,38 @@ async function renderNotices() {
     let html = canCreate ? '<button class="submit-btn-outline" onclick="showNoticeForm()">＋ お知らせを投稿</button>' : '';
     if (res.data.length === 0) html += '<div class="empty">お知らせがまだありません</div>';
     res.data.forEach(function(n) {
-      html += '<div class="card ' + (n.priority==='important'?'card-accent':'') + '" onclick="showNoticeDetail(\'' + n.id + '\')" style="cursor:pointer"><div style="display:flex;justify-content:space-between;margin-bottom:8px;align-items:center"><div style="display:flex;gap:8px">' + (n.priority==='important' ? '<span class="badge badge-red">重要</span>' : '<span class="badge badge-gray">お知らせ</span>') + '</div><span style="font-size:13px;color:var(--text-mid)">' + fmtDateShort(n.created_at) + '</span></div><div style="font-weight:' + (n.priority==='important'?800:700) + ';font-size:16px;color:var(--text)">' + n.title + '</div></div>';
+      const canEdit = ['admin','office'].includes(currentProfile.role);
+      html += '<div class="card ' + (n.priority==='important'?'card-accent':'') + '"><div style="display:flex;justify-content:space-between;margin-bottom:8px;align-items:center"><div style="display:flex;gap:8px">' + (n.priority==='important' ? '<span class="badge badge-red">重要</span>' : '<span class="badge badge-gray">お知らせ</span>') + '</div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:var(--text-mid)">' + fmtDateShort(n.created_at) + '</span>' + (canEdit ? '<button onclick="showNoticeEditForm(\'' + n.id + '\')" style="background:none;border:1px solid var(--gray-mid);border-radius:2px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--text-mid)">編集</button><button onclick="deleteNotice(\'' + n.id + '\')" style="background:none;border:1px solid #ccc;border-radius:2px;padding:3px 8px;font-size:11px;cursor:pointer;color:#999">削除</button>' : '') + '</div></div><div style="font-weight:' + (n.priority==='important'?800:700) + ';font-size:16px;color:var(--text);cursor:pointer" onclick="showNoticeDetail(\'' + n.id + '\')">' + n.title + '</div></div>';
     });
     el.innerHTML = html;
   } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+async function deleteNotice(id) {
+  if (!confirm('このお知らせを削除しますか？')) return;
+  try {
+    await axios.delete(API + '/notices?id=eq.' + id, { headers: hdrs() });
+    navigate('notices');
+  } catch(e) { alert('削除に失敗しました'); }
+}
+
+async function showNoticeEditForm(id) {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const res = await axios.get(API + '/notices?id=eq.' + id, { headers: hdrs() });
+    const n = res.data[0];
+    el.innerHTML = '<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">🔔 お知らせを編集</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="no-title" value="' + n.title + '"></div><div class="form-group-inline"><label>本文</label><textarea id="no-body" style="min-height:140px">' + (n.body||'') + '</textarea></div><div class="form-group-inline"><label>優先度</label><select id="no-priority"><option value="normal"' + (n.priority==='normal'?' selected':'') + '>通常</option><option value="important"' + (n.priority==='important'?' selected':'') + '>重要</option></select></div><button class="submit-btn" onclick="updateNotice(\'' + id + '\')">更新する</button></div>';
+  } catch(e) { alert('読み込みに失敗しました'); }
+}
+
+async function updateNotice(id) {
+  const title = document.getElementById('no-title').value;
+  if (!title) { alert('タイトルは必須です'); return; }
+  try {
+    await axios.patch(API + '/notices?id=eq.' + id, { title, body: document.getElementById('no-body').value, priority: document.getElementById('no-priority').value }, { headers: Object.assign({}, hdrs(), { 'Prefer': 'return=minimal' }) });
+    alert('更新しました！'); navigate('notices');
+  } catch(e) { alert('更新に失敗しました'); }
 }
 
 async function showNoticeDetail(id) {
@@ -663,7 +724,7 @@ async function showNoticeDetail(id) {
 
 function showNoticeForm() {
   const el = document.getElementById('main-content');
-  el.innerHTML = '<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">🔔 お知らせを投稿</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="no-title" placeholder="タイトルを入力"></div><div class="form-group-inline"><label>本文</label><textarea id="no-body" placeholder="内容を入力" style="min-height:140px"></textarea></div><div class="form-group-inline"><label>優先度</label><select id="no-priority"><option value="normal">通常</option><option value="important">重要</option></select></div><div class="form-group-inline"><label>添付ファイル（任意）</label><select id="no-file-category" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><option value="">カテゴリを選択...</option><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select><input type="file" id="no-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div><button class="submit-btn" onclick="submitNewNotice()">投稿する</button></div>';
+  el.innerHTML = '<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">🔔 お知らせを投稿</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="no-title" placeholder="タイトルを入力"></div><div class="form-group-inline"><label>本文</label><textarea id="no-body" placeholder="内容を入力" style="min-height:140px"></textarea></div><div class="form-group-inline"><label>優先度</label><select id="no-priority"><option value="normal">通常</option><option value="important">重要</option></select></div><div class="form-group-inline"><label>添付ファイル（任意）</label><input type="text" id="no-file-name" placeholder="ファイルの表示名（例：R8年度総会資料）" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><select id="no-file-category" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><option value="">カテゴリを選択...</option><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select><input type="file" id="no-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div><button class="submit-btn" onclick="submitNewNotice()">投稿する</button></div>';
 }
 
 async function submitNewNotice() {
@@ -675,6 +736,7 @@ async function submitNewNotice() {
     let fileUrl = null;
     const file = document.getElementById('no-file').files[0];
     const fileCat = document.getElementById('no-file-category').value;
+    const fileDisplayName = document.getElementById('no-file-name').value;
     if (file) {
       const ext = file.name.split('.').pop();
       const filePath = 'notices/' + Date.now() + '.' + ext;
@@ -683,7 +745,7 @@ async function submitNewNotice() {
       // 資料ライブラリにも保存
       if (fileCat) {
         await axios.post(API + '/documents', {
-          name: title + '（添付）',
+          name: fileDisplayName || title + '（添付）',
           file_url: fileUrl,
           file_size: (file.size / 1024).toFixed(0) + 'KB',
           category: fileCat,
