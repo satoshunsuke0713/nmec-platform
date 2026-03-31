@@ -664,7 +664,7 @@ function memberCard(m) {
       <div class="member-info">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
           <div class="member-name">${m.name||'—'}</div>
-          <span class="badge badge-red">${roleLabel(m.role)}</span>
+          <span class="badge badge-red">${m.committee || roleLabel(m.role)}</span>
         </div>
         <div class="member-sub" style="margin-top:6px">${m.company||''}</div>
         <div class="member-sub">${m.position||''}</div>
