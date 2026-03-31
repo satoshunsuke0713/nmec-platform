@@ -826,33 +826,47 @@ async function renderCommittees() {
   const el = document.getElementById('main-content');
   el.innerHTML = '<div class="loading"></div>';
   try {
-    const [cRes, uRes] = await Promise.all([
+    const [cRes, uRes, mRes] = await Promise.all([
       axios.get(`${API}/committees?order=sort_order.asc`, { headers: headers() }),
-      axios.get(`${API}/users?is_active=eq.true&order=name.asc`, { headers: headers() })
+      axios.get(`${API}/users?is_active=eq.true&order=name.asc`, { headers: headers() }),
+      axios.get(`${API}/committee_members`, { headers: headers() })
     ]);
     const committees = cRes.data;
     const users = uRes.data;
+    const allMembers = mRes.data;
     const canEdit = ['admin','office','director'].includes(currentProfile.role);
 
     let html = canEdit ? `<button class="submit-btn-outline" onclick="showCommitteeForm(${JSON.stringify(users).replace(/"/g,'&quot;')})">＋ 委員会を追加</button>` : '';
-
-    if (committees.length === 0) { html += '<div class="empty">委員会がまだありません</div>'; }
+    if (committees.length === 0) html += '<div class="empty">委員会がまだありません</div>';
 
     committees.forEach(c => {
-      const chair = users.find(u => u.id === c.chair_id);
-      html += `<div class="card card-accent">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+      const viceDirector = users.find(u => u.id === c.chair_id);
+      const members = allMembers.filter(m => m.committee_id === c.id);
+      const chair = members.find(m => m.role === 'chair');
+      const viceChairs = members.filter(m => m.role === 'vice_chair');
+      const chairUser = chair ? users.find(u => u.id === chair.user_id) : null;
+      const viceChairUsers = viceChairs.map(v => users.find(u => u.id === v.user_id)).filter(Boolean);
+
+      const roleRow = (label, color, person) => person ? `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray)">
+          <span style="font-size:11px;font-weight:800;color:${color};width:90px;flex-shrink:0;letter-spacing:0.5px">${label}</span>
           <div>
-            <div style="font-size:18px;font-weight:800;color:var(--gray-dark)">${c.name}</div>
-            ${c.description ? `<div style="font-size:13px;color:var(--text-mid);margin-top:4px">${c.description}</div>` : ''}
+            <div style="font-size:15px;font-weight:700;color:var(--text)">${person.name}</div>
+            <div style="font-size:12px;color:var(--text-mid)">${person.company}</div>
           </div>
-          ${canEdit ? `<button onclick="showCommitteeEdit('${c.id}',${JSON.stringify(users).replace(/"/g,'&quot;')})" style="background:none;border:1px solid var(--gray-mid);border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text-mid)">編集</button>` : ''}
+        </div>` : '';
+
+      html += `<div class="card card-accent">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+          <div style="font-size:18px;font-weight:800;color:var(--gray-dark)">${c.name}</div>
+          ${canEdit ? `<div style="display:flex;gap:6px">
+            <button onclick="showMemberForm('${c.id}',${JSON.stringify(users).replace(/"/g,'&quot;')})" style="background:var(--red);color:#fff;border:none;border-radius:2px;padding:5px 10px;font-size:12px;cursor:pointer">メンバー</button>
+            <button onclick="showCommitteeEdit('${c.id}',${JSON.stringify(users).replace(/"/g,'&quot;')})" style="background:none;border:1px solid var(--gray-mid);border-radius:2px;padding:5px 10px;font-size:12px;cursor:pointer;color:var(--text-mid)">編集</button>
+          </div>` : ''}
         </div>
-        <div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--gray)">
-          <span style="font-size:12px;font-weight:700;color:var(--text-mid);width:60px">委員長</span>
-          ${chair ? `<span class="badge badge-red">${chair.name}</span>` : `<span style="font-size:13px;color:#aaa">未設定</span>`}
-          ${canEdit ? `<button onclick="showMemberForm('${c.id}',${JSON.stringify(users).replace(/"/g,'&quot;')})" style="margin-left:auto;background:var(--red);color:#fff;border:none;border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer">メンバー管理</button>` : ''}
-        </div>
+        ${roleRow('担当副理事長', '#1a7a4a', viceDirector)}
+        ${roleRow('委員長', 'var(--red)', chairUser)}
+        ${viceChairUsers.map(u => roleRow('副委員長', '#1a2e4a', u)).join('')}
       </div>`;
     });
 
