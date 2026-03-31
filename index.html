@@ -649,6 +649,15 @@ function showEventForm() {
   });
 }
 
+async function sendEmailNotification(type, data) {
+  try {
+    await axios.post('/api/send-email', { type, ...data });
+    console.log('メール送信完了');
+  } catch(e) {
+    console.error('メール送信エラー:', e);
+  }
+}
+
 async function submitNewEvent() {
   const title = document.getElementById('ev-title').value;
   const date = document.getElementById('ev-date').value;
@@ -686,7 +695,12 @@ async function submitNewEvent() {
       created_by: currentUser.id
     }, { headers: hdrs() });
 
-    alert('作成しました！お知らせも自動配信されました😊');
+    // メール一斉送信
+    await sendEmailNotification('event', {
+      title, eventDate: dateStr, location, committee
+    });
+
+    alert('作成しました！メンバーにメールを送信しました😊');
     navigate('events');
   } catch(e) { alert('作成に失敗しました'); }
 }
@@ -935,7 +949,15 @@ async function submitNewNotice() {
       }
     }
     await axios.post(API + '/notices', { title, body: document.getElementById('no-body').value, priority: document.getElementById('no-priority').value, file_url: fileUrl, created_by: currentUser.id }, { headers: hdrs() });
-    alert('投稿しました！'); navigate('notices');
+
+    // メール一斉送信
+    await sendEmailNotification('notice', {
+      title,
+      body: document.getElementById('no-body').value
+    });
+
+    alert('投稿しました！メンバーにメールを送信しました😊');
+    navigate('notices');
   } catch(e) { alert('投稿に失敗しました'); btn.textContent = '投稿する'; btn.disabled = false; }
 }
 
