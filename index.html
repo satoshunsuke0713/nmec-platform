@@ -254,6 +254,16 @@ function toggleForm(type) {
   document.getElementById('auth-error').style.display = 'none';
 }
 
+// URLパラメータチェック（rsvp=イベントID）
+function checkRsvpUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const rsvpId = params.get('rsvp');
+  if (rsvpId) {
+    window._pendingRsvp = rsvpId;
+    // ログイン後に出欠画面へ
+  }
+}
+
 async function login() {
   const email = document.getElementById('login-email').value;
   const pw = document.getElementById('login-password').value;
@@ -300,8 +310,19 @@ function showApp() {
   document.getElementById('sb-name').textContent = currentProfile.name || '—';
   document.getElementById('sb-company').textContent = currentProfile.company || '—';
   document.getElementById('sb-role').textContent = roleLabel(currentProfile.role);
-  navigate('dashboard');
+  // RSVP URLからのアクセス
+  if (window._pendingRsvp) {
+    const rsvpId = window._pendingRsvp;
+    window._pendingRsvp = null;
+    navigate('events');
+    showEventDetail(rsvpId);
+  } else {
+    navigate('dashboard');
+  }
 }
+
+// ページ読み込み時にURLチェック
+checkRsvpUrl();
 
 function roleLabel(r) { return { admin:'管理者', office:'事務局', director:'理事・委員長', member:'一般会員' }[r] || r; }
 function typeLabel(t) { return { sanyaku:'三役会議', rijikai:'理事会', reikai:'例会', iinkai:'委員会', jigyou:'その他事業', other:'その他' }[t] || t; }
@@ -459,17 +480,71 @@ async function showEventDetail(id) {
   try {
     const eRes = await axios.get(API + '/events?id=eq.' + id, { headers: hdrs() });
     const aRes = await axios.get(API + '/attendances?event_id=eq.' + id + '&user_id=eq.' + currentUser.id, { headers: hdrs() });
+    const allARes = await axios.get(API + '/attendances?event_id=eq.' + id, { headers: hdrs() });
+    const uRes = await axios.get(API + '/users?is_active=eq.true', { headers: hdrs() });
     const dRes = await axios.get(API + '/documents?event_id=eq.' + id + '&order=created_at.desc', { headers: hdrs() });
-    const e = eRes.data[0], myAtt = aRes.data[0], docs = dRes.data;
+    const e = eRes.data[0], myAtt = aRes.data[0], allAtts = allARes.data, users = uRes.data, docs = dRes.data;
     const agenda = e.agenda || [];
     const cur = myAtt ? myAtt.status : null;
     const canUpload = ['admin','office','director'].includes(currentProfile.role);
+    const canSeeAll = ['admin','office','director'].includes(currentProfile.role);
+    const rsvpUrl = window.location.origin + window.location.pathname + '?rsvp=' + id;
 
+    // 出欠回答
     let rsvpHtml = '';
     if (e.status === 'published') {
-      rsvpHtml = '<div class="card card-accent"><div class="section-title">✋ 出欠回答</div>' + (cur ? '<p style="font-size:14px;color:var(--text-mid);margin-bottom:12px">現在の回答：<span class="badge ' + (cur==='attend'?'badge-green':cur==='absent'?'badge-red':'badge-gray') + '">' + (cur==='attend'?'出席':cur==='absent'?'欠席':'保留') + '</span></p>' : '') + '<div class="rsvp-btns"><button class="rsvp-btn ' + (cur==='attend'?'selected-attend':'') + '" onclick="submitRsvp(\'' + id + '\',\'attend\',\'' + (myAtt?myAtt.id:'') + '\')">✅ 出席</button><button class="rsvp-btn ' + (cur==='absent'?'selected-absent':'') + '" onclick="submitRsvp(\'' + id + '\',\'absent\',\'' + (myAtt?myAtt.id:'') + '\')">❌ 欠席</button><button class="rsvp-btn ' + (cur==='pending'?'selected-pending':'') + '" onclick="submitRsvp(\'' + id + '\',\'pending\',\'' + (myAtt?myAtt.id:'') + '\')">🤔 保留</button></div></div>';
+      rsvpHtml = '<div class="card card-accent"><div class="section-title">✋ 出欠回答</div>' +
+        (cur ? '<p style="font-size:14px;color:var(--text-mid);margin-bottom:12px">現在の回答：<span class="badge ' + (cur==='attend'?'badge-green':cur==='absent'?'badge-red':'badge-gray') + '">' + (cur==='attend'?'出席':cur==='absent'?'欠席':'保留') + '</span></p>' : '') +
+        '<div class="rsvp-btns"><button class="rsvp-btn ' + (cur==='attend'?'selected-attend':'') + '" onclick="submitRsvp(\'' + id + '\',\'attend\',\'' + (myAtt?myAtt.id:'') + '\')">✅ 出席</button><button class="rsvp-btn ' + (cur==='absent'?'selected-absent':'') + '" onclick="submitRsvp(\'' + id + '\',\'absent\',\'' + (myAtt?myAtt.id:'') + '\')">❌ 欠席</button><button class="rsvp-btn ' + (cur==='pending'?'selected-pending':'') + '" onclick="submitRsvp(\'' + id + '\',\'pending\',\'' + (myAtt?myAtt.id:'') + '\')">🤔 保留</button></div></div>';
     }
 
+    // 出欠集計・一覧
+    let rsvpListHtml = '';
+    if (canSeeAll) {
+      const attendCount = allAtts.filter(function(a) { return a.status === 'attend'; }).length;
+      const absentCount = allAtts.filter(function(a) { return a.status === 'absent'; }).length;
+      const pendingCount = allAtts.filter(function(a) { return a.status === 'pending'; }).length;
+      const answeredIds = allAtts.map(function(a) { return a.user_id; });
+      const unansweredCount = users.filter(function(u) { return !answeredIds.includes(u.id); }).length;
+
+      rsvpListHtml = '<div class="card"><div class="section-title">📊 出欠集計</div>' +
+        '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">' +
+        '<div style="text-align:center;background:#e8f5e9;border-radius:8px;padding:12px 20px;flex:1"><div style="font-size:28px;font-weight:800;color:#2e7d32">' + attendCount + '</div><div style="font-size:12px;color:#2e7d32;font-weight:700">出席</div></div>' +
+        '<div style="text-align:center;background:#fef2f2;border-radius:8px;padding:12px 20px;flex:1"><div style="font-size:28px;font-weight:800;color:var(--red)">' + absentCount + '</div><div style="font-size:12px;color:var(--red);font-weight:700">欠席</div></div>' +
+        '<div style="text-align:center;background:#fff8e1;border-radius:8px;padding:12px 20px;flex:1"><div style="font-size:28px;font-weight:800;color:#f59e0b">' + pendingCount + '</div><div style="font-size:12px;color:#f59e0b;font-weight:700">保留</div></div>' +
+        '<div style="text-align:center;background:#f5f5f5;border-radius:8px;padding:12px 20px;flex:1"><div style="font-size:28px;font-weight:800;color:#999">' + unansweredCount + '</div><div style="font-size:12px;color:#999;font-weight:700">未回答</div></div>' +
+        '</div>';
+
+      // RSVP URL
+      rsvpListHtml += '<div style="background:#f8fafc;border-radius:6px;padding:12px;margin-bottom:16px">' +
+        '<div style="font-size:12px;font-weight:700;color:var(--text-mid);margin-bottom:6px">📋 出欠回答URL（メンバーに共有）</div>' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
+        '<div style="font-size:12px;color:var(--text);background:#fff;border:1px solid var(--gray-mid);border-radius:4px;padding:8px;flex:1;word-break:break-all">' + rsvpUrl + '</div>' +
+        '<button onclick="copyRsvpUrl(\'' + rsvpUrl + '\')" style="background:var(--red);color:#fff;border:none;border-radius:4px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">コピー</button>' +
+        '</div></div>';
+
+      // 回答一覧
+      rsvpListHtml += '<div class="section-title">回答一覧</div>';
+      allAtts.forEach(function(a) {
+        const u = users.find(function(x) { return x.id === a.user_id; });
+        if (!u) return;
+        const cls = a.status==='attend'?'badge-green':a.status==='absent'?'badge-red':'badge-gray';
+        const lbl = a.status==='attend'?'出席':a.status==='absent'?'欠席':'保留';
+        rsvpListHtml += '<div class="row"><div><div class="row-title" style="font-size:14px">' + u.name + '</div><div class="row-sub">' + (u.company||'') + '</div>' + (a.comment ? '<div class="row-sub" style="margin-top:2px">💬 ' + a.comment + '</div>' : '') + '</div><span class="badge ' + cls + '">' + lbl + '</span></div>';
+      });
+
+      // 未回答一覧
+      if (unansweredCount > 0) {
+        rsvpListHtml += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--gray)"><div style="font-size:12px;font-weight:700;color:#999;margin-bottom:8px">未回答</div>';
+        users.filter(function(u) { return !answeredIds.includes(u.id); }).forEach(function(u) {
+          rsvpListHtml += '<div class="row"><div><div class="row-title" style="font-size:14px;color:#999">' + u.name + '</div><div class="row-sub">' + (u.company||'') + '</div></div><span class="badge badge-gray">未回答</span></div>';
+        });
+        rsvpListHtml += '</div>';
+      }
+      rsvpListHtml += '</div>';
+    }
+
+    // アジェンダ
     let agendaHtml = '';
     if (agenda.length > 0) {
       agendaHtml = '<div class="card"><div class="section-title">📝 アジェンダ</div>';
@@ -491,8 +566,24 @@ async function showEventDetail(id) {
     }
     docsHtml += '</div>';
 
-    el.innerHTML = '<button class="back-btn" onclick="navigate(\'events\')">← 一覧に戻る</button><div class="card card-accent"><span class="badge badge-red">' + typeLabel(e.type) + '</span><div class="detail-title">' + e.title + '</div><div class="detail-row"><span class="detail-label">日時</span><span class="detail-value">' + fmtDate(e.date) + '</span></div><div class="detail-row"><span class="detail-label">場所</span><span class="detail-value">' + (e.location||'未定') + '</span></div>' + (e.committee ? '<div class="detail-row"><span class="detail-label">担当委員会</span><span class="detail-value">' + e.committee + '</span></div>' : '') + (e.description ? '<div class="detail-row"><span class="detail-label">概要</span><span class="detail-value">' + e.description + '</span></div>' : '') + (e.rsvp_deadline ? '<div class="detail-row"><span class="detail-label">出欠締切</span><span class="detail-value" style="color:var(--red);font-weight:700">' + fmtDateShort(e.rsvp_deadline) + '</span></div>' : '') + '</div>' + rsvpHtml + agendaHtml + docsHtml;
+    el.innerHTML = '<button class="back-btn" onclick="navigate(\'events\')">← 一覧に戻る</button>' +
+      '<div class="card card-accent"><span class="badge badge-red">' + typeLabel(e.type) + '</span>' +
+      '<div class="detail-title">' + e.title + '</div>' +
+      '<div class="detail-row"><span class="detail-label">日時</span><span class="detail-value">' + fmtDate(e.date) + '</span></div>' +
+      '<div class="detail-row"><span class="detail-label">場所</span><span class="detail-value">' + (e.location||'未定') + '</span></div>' +
+      (e.committee ? '<div class="detail-row"><span class="detail-label">担当委員会</span><span class="detail-value">' + e.committee + '</span></div>' : '') +
+      (e.description ? '<div class="detail-row"><span class="detail-label">概要</span><span class="detail-value">' + e.description + '</span></div>' : '') +
+      (e.rsvp_deadline ? '<div class="detail-row"><span class="detail-label">出欠締切</span><span class="detail-value" style="color:var(--red);font-weight:700">' + fmtDateShort(e.rsvp_deadline) + '</span></div>' : '') +
+      '</div>' + rsvpHtml + rsvpListHtml + agendaHtml + docsHtml;
   } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function copyRsvpUrl(url) {
+  navigator.clipboard.writeText(url).then(function() {
+    alert('URLをコピーしました！\nメールやLINEで共有してください😊');
+  }).catch(function() {
+    prompt('以下のURLをコピーしてください', url);
+  });
 }
 
 async function deleteDocument(docId, eventId) {
