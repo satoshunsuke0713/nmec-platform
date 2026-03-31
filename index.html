@@ -428,7 +428,7 @@ function closeSidebar() {
 
 function fmtDate(d) { const dt = new Date(d); return `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日 ${dt.getHours()}:${String(dt.getMinutes()).padStart(2,'0')}`; }
 function fmtDateShort(d) { const dt = new Date(d); return `${dt.getFullYear()}/${dt.getMonth()+1}/${dt.getDate()}`; }
-function typeLabel(t) { return { reikai:'例会', iinkai:'委員会', soukai:'総会', koryu:'交流会', other:'その他' }[t] || t; }
+function typeLabel(t) { return { sanyaku:'三役会議', rijikai:'理事会', reikai:'例会', iinkai:'委員会', jigyou:'その他事業', other:'その他' }[t] || t; }
 
 async function renderDashboard() {
   const el = document.getElementById('main-content');
@@ -482,11 +482,13 @@ async function renderEvents() {
   try {
     const res = await axios.get(`${API}/events?order=date.desc`, { headers: headers() });
     const canCreate = ['admin','office','director'].includes(currentProfile.role);
-    let html = `<div class="filter-btns">
+    let html =     <div class="filter-btns">
       <button class="filter-btn active" onclick="filterEvents('all',this)">すべて</button>
+      <button class="filter-btn" onclick="filterEvents('sanyaku',this)">三役会議</button>
+      <button class="filter-btn" onclick="filterEvents('rijikai',this)">理事会</button>
       <button class="filter-btn" onclick="filterEvents('reikai',this)">例会</button>
       <button class="filter-btn" onclick="filterEvents('iinkai',this)">委員会</button>
-      <button class="filter-btn" onclick="filterEvents('soukai',this)">総会</button>
+      <button class="filter-btn" onclick="filterEvents('jigyou',this)">その他事業</button>
     </div>`;
     if (canCreate) html += `<button class="submit-btn-outline" onclick="showEventForm()">＋ 例会・委員会を作成</button>`;
     html += `<div id="events-list">`;
@@ -570,20 +572,38 @@ async function submitRsvp(eventId, status, existingId) {
 
 function showEventForm() {
   const el = document.getElementById('main-content');
-  el.innerHTML = `
-    <button class="back-btn" onclick="navigate('events')">← 一覧に戻る</button>
-    <div class="card card-accent">
-      <div class="section-title">📅 例会・委員会を作成</div>
-      <div class="form-group-inline"><label>タイトル *</label><input type="text" id="ev-title" placeholder="第149回 定例例会"></div>
-      <div class="form-group-inline"><label>種別</label>
-        <select id="ev-type"><option value="reikai">例会</option><option value="iinkai">委員会</option><option value="soukai">総会</option><option value="koryu">交流会</option><option value="other">その他</option></select>
-      </div>
-      <div class="form-group-inline"><label>日時 *</label><input type="datetime-local" id="ev-date"></div>
-      <div class="form-group-inline"><label>場所</label><input type="text" id="ev-location" placeholder="万代シルバーホテル 3F"></div>
-      <div class="form-group-inline"><label>概要</label><textarea id="ev-desc" placeholder="内容の説明"></textarea></div>
-      <div class="form-group-inline"><label>出欠締切日</label><input type="datetime-local" id="ev-deadline"></div>
-      <button class="submit-btn" onclick="submitNewEvent()">作成する</button>
-    </div>`;
+  // 委員会リストを取得してからフォーム表示
+  axios.get(`${API}/committees?order=sort_order.asc`, { headers: headers() }).then(res => {
+    const committees = res.data;
+    const committeeOptions = committees.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+    el.innerHTML = `
+      <button class="back-btn" onclick="navigate('events')">← 一覧に戻る</button>
+      <div class="card card-accent">
+        <div class="section-title">📅 イベントを作成</div>
+        <div class="form-group-inline"><label>タイトル *</label><input type="text" id="ev-title" placeholder="第149回 定例例会"></div>
+        <div class="form-group-inline"><label>種別 *</label>
+          <select id="ev-type">
+            <option value="sanyaku">三役会議</option>
+            <option value="rijikai">理事会</option>
+            <option value="reikai">例会</option>
+            <option value="iinkai">委員会</option>
+            <option value="jigyou">その他事業</option>
+            <option value="other">その他</option>
+          </select>
+        </div>
+        <div class="form-group-inline"><label>担当委員会</label>
+          <select id="ev-committee">
+            <option value="">なし（全体）</option>
+            ${committeeOptions}
+          </select>
+        </div>
+        <div class="form-group-inline"><label>日時 *</label><input type="datetime-local" id="ev-date"></div>
+        <div class="form-group-inline"><label>場所</label><input type="text" id="ev-location" placeholder="万代シルバーホテル 3F"></div>
+        <div class="form-group-inline"><label>概要</label><textarea id="ev-desc" placeholder="内容の説明"></textarea></div>
+        <div class="form-group-inline"><label>出欠締切日</label><input type="datetime-local" id="ev-deadline"></div>
+        <button class="submit-btn" onclick="submitNewEvent()">作成する</button>
+      </div>`;
+  });
 }
 
 async function submitNewEvent() {
@@ -591,7 +611,17 @@ async function submitNewEvent() {
   const date = document.getElementById('ev-date').value;
   if (!title || !date) { alert('タイトルと日時は必須です'); return; }
   try {
-    await axios.post(`${API}/events`, { title, type: document.getElementById('ev-type').value, date: new Date(date).toISOString(), location: document.getElementById('ev-location').value, description: document.getElementById('ev-desc').value, rsvp_deadline: document.getElementById('ev-deadline').value ? new Date(document.getElementById('ev-deadline').value).toISOString() : null, status: 'published', created_by: currentUser.id }, { headers: headers() });
+    await axios.post(`${API}/events`, {
+      title,
+      type: document.getElementById('ev-type').value,
+      date: new Date(date).toISOString(),
+      location: document.getElementById('ev-location').value,
+      description: document.getElementById('ev-desc').value,
+      committee: document.getElementById('ev-committee').value || null,
+      rsvp_deadline: document.getElementById('ev-deadline').value ? new Date(document.getElementById('ev-deadline').value).toISOString() : null,
+      status: 'published',
+      created_by: currentUser.id
+    }, { headers: headers() });
     alert('作成しました！'); navigate('events');
   } catch(e) { alert('作成に失敗しました'); }
 }
