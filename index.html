@@ -695,12 +695,16 @@ async function submitNewEvent() {
       created_by: currentUser.id
     }, { headers: hdrs() });
 
-    // メール一斉送信
-    await sendEmailNotification('event', {
-      title, eventDate: dateStr, location, committee
-    });
+    // メール送信設定を確認
+    const emailMode = document.querySelector('input[name="email-mode"]:checked');
+    const sendEmail = emailMode ? emailMode.value === 'all' : false;
 
-    alert('作成しました！メンバーにメールを送信しました😊');
+    if (sendEmail) {
+      await sendEmailNotification('event', { title, eventDate: dateStr, location, committee });
+      alert('作成しました！メンバーにメールを送信しました😊');
+    } else {
+      alert('作成しました！');
+    }
     navigate('events');
   } catch(e) { alert('作成に失敗しました'); }
 }
@@ -918,7 +922,7 @@ async function showNoticeDetail(id) {
 
 function showNoticeForm() {
   const el = document.getElementById('main-content');
-  el.innerHTML = '<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">🔔 お知らせを投稿</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="no-title" placeholder="タイトルを入力"></div><div class="form-group-inline"><label>本文</label><textarea id="no-body" placeholder="内容を入力" style="min-height:140px"></textarea></div><div class="form-group-inline"><label>優先度</label><select id="no-priority"><option value="normal">通常</option><option value="important">重要</option></select></div><div class="form-group-inline"><label>添付ファイル（任意）</label><input type="text" id="no-file-name" placeholder="ファイルの表示名（例：R8年度総会資料）" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><select id="no-file-category" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><option value="">カテゴリを選択...</option><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select><input type="file" id="no-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div><button class="submit-btn" onclick="submitNewNotice()">投稿する</button></div>';
+  el.innerHTML = '<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">🔔 お知らせを投稿</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="no-title" placeholder="タイトルを入力"></div><div class="form-group-inline"><label>本文</label><textarea id="no-body" placeholder="内容を入力" style="min-height:140px"></textarea></div><div class="form-group-inline"><label>優先度</label><select id="no-priority"><option value="normal">通常</option><option value="important">重要</option></select></div><div class="form-group-inline"><label>添付ファイル（任意）</label><input type="text" id="no-file-name" placeholder="ファイルの表示名（例：R8年度総会資料）" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><select id="no-file-category" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><option value="">カテゴリを選択...</option><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select><input type="file" id="no-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div><div style="background:#f8fafc;border-radius:6px;padding:16px;margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:var(--gray-dark);margin-bottom:10px">📧 メール通知</div><div style="display:flex;flex-direction:column;gap:8px"><label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="radio" name="notice-email-mode" value="all" checked> 全理事メンバーに送信</label><label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="radio" name="notice-email-mode" value="none"> 送信しない</label></div></div><button class="submit-btn" onclick="submitNewNotice()">投稿する</button></div>';
 }
 
 async function submitNewNotice() {
@@ -950,13 +954,16 @@ async function submitNewNotice() {
     }
     await axios.post(API + '/notices', { title, body: document.getElementById('no-body').value, priority: document.getElementById('no-priority').value, file_url: fileUrl, created_by: currentUser.id }, { headers: hdrs() });
 
-    // メール一斉送信
-    await sendEmailNotification('notice', {
-      title,
-      body: document.getElementById('no-body').value
-    });
+    // メール送信設定を確認
+    const noticeEmailMode = document.querySelector('input[name="notice-email-mode"]:checked');
+    const sendNoticeEmail = noticeEmailMode ? noticeEmailMode.value === 'all' : false;
 
-    alert('投稿しました！メンバーにメールを送信しました😊');
+    if (sendNoticeEmail) {
+      await sendEmailNotification('notice', { title, body: document.getElementById('no-body').value });
+      alert('投稿しました！メンバーにメールを送信しました😊');
+    } else {
+      alert('投稿しました！');
+    }
     navigate('notices');
   } catch(e) { alert('投稿に失敗しました'); btn.textContent = '投稿する'; btn.disabled = false; }
 }
