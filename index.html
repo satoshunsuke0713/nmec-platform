@@ -439,7 +439,7 @@ function showEventForm() {
   const el = document.getElementById('main-content');
   axios.get(API + '/committees?order=sort_order.asc', { headers: hdrs() }).then(function(res) {
     const committeeOptions = res.data.map(function(c) { return '<option value="' + c.name + '">' + c.name + '</option>'; }).join('');
-    el.innerHTML = '<button class="back-btn" onclick="navigate(\'events\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">📅 イベントを作成</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="ev-title" placeholder="第149回 定例例会"></div><div class="form-group-inline"><label>種別 *</label><select id="ev-type"><option value="sanyaku">三役会議</option><option value="rijikai">理事会</option><option value="reikai">例会</option><option value="iinkai">委員会</option><option value="jigyou">その他事業</option><option value="other">その他</option></select></div><div class="form-group-inline"><label>担当委員会</label><select id="ev-committee"><option value="">なし（全体）</option>' + committeeOptions + '</select></div><div class="form-group-inline"><label>日時 *</label><input type="datetime-local" id="ev-date"></div><div class="form-group-inline"><label>場所</label><input type="text" id="ev-location" placeholder="万代シルバーホテル 3F"></div><div class="form-group-inline"><label>概要</label><textarea id="ev-desc" placeholder="内容の説明"></textarea></div><div class="form-group-inline"><label>出欠締切日</label><input type="datetime-local" id="ev-deadline"></div>' + emailNotifyBox('email-mode') + '<button class="submit-btn" onclick="submitNewEvent()">作成する</button></div>';
+    el.innerHTML = '<button class="back-btn" onclick="navigate(\'events\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">📅 イベントを作成</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="ev-title" placeholder="第149回 定例例会"></div><div class="form-group-inline"><label>種別 *</label><select id="ev-type"><option value="sanyaku">三役会議</option><option value="rijikai">理事会</option><option value="reikai">例会</option><option value="iinkai">委員会</option><option value="jigyou">その他事業</option><option value="other">その他</option></select></div><div class="form-group-inline"><label>担当委員会</label><select id="ev-committee"><option value="">なし（全体）</option>' + committeeOptions + '</select></div><div class="form-group-inline"><label>日時 *</label><input type="datetime-local" id="ev-date"></div><div class="form-group-inline"><label>場所</label><input type="text" id="ev-location" placeholder="万代シルバーホテル 3F"></div><div class="form-group-inline"><label>概要</label><textarea id="ev-desc" placeholder="内容の説明"></textarea></div><div class="form-group-inline"><label>出欠締切日</label><input type="datetime-local" id="ev-deadline"></div><button class="submit-btn" onclick="submitNewEvent()">作成する</button></div>';
   });
 }
 
@@ -456,15 +456,7 @@ async function submitNewEvent() {
     await axios.post(API + '/events', { title, type, date: eventDate.toISOString(), location, description: document.getElementById('ev-desc').value, committee: committee || null, rsvp_deadline: document.getElementById('ev-deadline').value ? new Date(document.getElementById('ev-deadline').value).toISOString() : null, status: 'published', created_by: currentUser.id }, { headers: hdrs() });
     const noticeBody = '【' + typeLabel(type) + '】' + title + ' の開催が登録されました。\n\n📅 日時：' + dateStr + '\n' + (location ? '📍 場所：' + location + '\n' : '') + (committee ? '🏛️ 担当委員会：' + committee + '\n' : '') + '\n詳細は「会議・事業」メニューよりご確認ください。';
     await axios.post(API + '/notices', { title: '【' + typeLabel(type) + '】' + title + ' が登録されました', body: noticeBody, priority: 'normal', created_by: currentUser.id }, { headers: hdrs() });
-    const emailModeEl = document.querySelector('input[name="email-mode"]:checked');
-    const emailMode = emailModeEl ? emailModeEl.value : 'none';
-    if (emailMode !== 'none') {
-      await sendEmailNotification('event', { title, eventDate: dateStr, location, committee, emailMode });
-      alert('作成しました！メンバーにメールを送信しました😊');
-    } else {
-      alert('作成しました！');
-    }
-    navigate('events');
+    alert('作成しました！'); navigate('events');
   } catch(e) { alert('作成に失敗しました'); }
 }
 
@@ -750,7 +742,7 @@ async function deleteNotice(id) {
 
 function showNoticeForm() {
   const el = document.getElementById('main-content');
-  el.innerHTML = '<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">🔔 お知らせを投稿</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="no-title" placeholder="タイトルを入力"></div><div class="form-group-inline"><label>本文</label><textarea id="no-body" placeholder="内容を入力" style="min-height:140px"></textarea></div><div class="form-group-inline"><label>優先度</label><select id="no-priority"><option value="normal">通常</option><option value="important">重要</option></select></div><div class="form-group-inline"><label>添付ファイル（任意）</label><input type="text" id="no-file-name" placeholder="ファイルの表示名（例：R8年度総会資料）" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><select id="no-file-category" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><option value="">カテゴリを選択...</option><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select><input type="file" id="no-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div>' + emailNotifyBox('notice-email-mode') + '<button class="submit-btn" onclick="submitNewNotice()">投稿する</button></div>';
+  el.innerHTML = '<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">🔔 お知らせを投稿</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="no-title" placeholder="タイトルを入力"></div><div class="form-group-inline"><label>本文</label><textarea id="no-body" placeholder="内容を入力" style="min-height:140px"></textarea></div><div class="form-group-inline"><label>優先度</label><select id="no-priority"><option value="normal">通常</option><option value="important">重要</option></select></div><div class="form-group-inline"><label>添付ファイル（任意）</label><input type="text" id="no-file-name" placeholder="ファイルの表示名（例：R8年度総会資料）" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><select id="no-file-category" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><option value="">カテゴリを選択...</option><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select><input type="file" id="no-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div><button class="submit-btn" onclick="submitNewNotice()">投稿する</button></div>';
 }
 
 async function submitNewNotice() {
@@ -771,13 +763,7 @@ async function submitNewNotice() {
       if (fileCat) await axios.post(API + '/documents', { name: fileDisplayName||title+'（添付）', file_url: fileUrl, file_size: (file.size/1024).toFixed(0)+'KB', category: fileCat, year: new Date().getFullYear(), uploaded_by: currentUser.id }, { headers: hdrs() });
     }
     await axios.post(API + '/notices', { title, body: document.getElementById('no-body').value, priority: document.getElementById('no-priority').value, file_url: fileUrl, created_by: currentUser.id }, { headers: hdrs() });
-    const emailModeEl = document.querySelector('input[name="notice-email-mode"]:checked');
-    const emailMode = emailModeEl ? emailModeEl.value : 'none';
-    if (emailMode !== 'none') {
-      await sendEmailNotification('notice', { title, body: document.getElementById('no-body').value, emailMode });
-      alert('投稿しました！メンバーにメールを送信しました😊');
-    } else { alert('投稿しました！'); }
-    navigate('notices');
+    alert('投稿しました！'); navigate('notices');
   } catch(e) { alert('投稿に失敗しました'); btn.textContent = '投稿する'; btn.disabled = false; }
 }
 
