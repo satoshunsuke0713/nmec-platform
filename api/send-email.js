@@ -18,12 +18,18 @@ module.exports = async function handler(req, res) {
   const { type, title, body, eventDate, location, committee } = req.body;
 
   try {
-    // 全会員のメールアドレスを取得（事務局除く）
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('email, name')
-      .eq('is_active', true)
-      .neq('email', 'info@nmec.jp');
+    // emailModeに応じて送信対象を絞る
+    let query = supabase.from('users').select('email, name').eq('is_active', true).neq('email', 'info@nmec.jp');
+
+    if (emailMode === 'directors') {
+      // 理事長・副理事長のみ（sort_order 1〜6）
+      query = query.lte('sort_order', 6);
+    } else {
+      // 全理事及び監事（sort_order 99除外＝事務局除く）
+      query = query.lt('sort_order', 90);
+    }
+
+    const { data: users, error } = await query;
 
     if (error) throw error;
 
