@@ -300,7 +300,7 @@
       <div class="nav-item active" id="nav-dashboard" onclick="navigate('dashboard')"><span class="nav-icon">🏠</span>ダッシュボード</div>
       <div class="nav-item" id="nav-events" onclick="navigate('events')"><span class="nav-icon">📅</span>例会・委員会</div>
       <div class="nav-item" id="nav-motions" onclick="navigate('motions')"><span class="nav-icon">📋</span>議案・議事録</div>
-      <div class="nav-item" id="nav-members" onclick="navigate('members')"><span class="nav-icon">👥</span>会員一覧</div>
+      <div class="nav-item" id="nav-members" onclick="navigate('members')"><span class="nav-icon">👥</span>理事メンバー</div>
       <div class="nav-item" id="nav-committees" onclick="navigate('committees')"><span class="nav-icon">🏛️</span>委員会管理</div>
       <div class="nav-item" id="nav-documents" onclick="navigate('documents')"><span class="nav-icon">📁</span>資料ライブラリ</div>
       <div class="nav-item" id="nav-notices" onclick="navigate('notices')"><span class="nav-icon">🔔</span>お知らせ</div>
@@ -331,7 +331,7 @@
     <button onclick="navigate('dashboard')" id="bn-dashboard" class="active"><span class="bn-icon">🏠</span>ホーム</button>
     <button onclick="navigate('events')" id="bn-events"><span class="bn-icon">📅</span>例会</button>
     <button onclick="navigate('motions')" id="bn-motions"><span class="bn-icon">📋</span>議案</button>
-    <button onclick="navigate('members')" id="bn-members"><span class="bn-icon">👥</span>会員</button>
+    <button onclick="navigate('members')" id="bn-members"><span class="bn-icon">👥</span>理事</button>
     <button onclick="navigate('notices')" id="bn-notices"><span class="bn-icon">🔔</span>お知らせ</button>
   </div>
 </div>
@@ -406,7 +406,7 @@ function roleLabel(r) { return { admin:'管理者', office:'事務局', director
 function navigate(page) {
   currentPage = page;
   closeSidebar();
-  const titles = { dashboard:'ダッシュボード', events:'例会・委員会', motions:'議案・議事録', members:'会員一覧', documents:'資料ライブラリ', notices:'お知らせ', committees:'委員会管理' };
+  const titles = { dashboard:'ダッシュボード', events:'例会・委員会', motions:'議案・議事録', members:'理事メンバー', documents:'資料ライブラリ', notices:'お知らせ', committees:'委員会管理' };
   document.getElementById('header-title').textContent = titles[page] || '';
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.bottom-nav button').forEach(el => el.classList.remove('active'));
@@ -647,28 +647,44 @@ async function renderMembers() {
   const el = document.getElementById('main-content');
   el.innerHTML = '<div class="loading"></div>';
   try {
-    const res = await axios.get(`${API}/users?is_active=eq.true&order=name.asc`, { headers: headers() });
+    const [uRes, mRes] = await Promise.all([
+      axios.get(`${API}/users?is_active=eq.true&order=name.asc`, { headers: headers() }),
+      axios.get(`${API}/committee_members`, { headers: headers() })
+    ]);
+    const users = uRes.data;
+    const allMembers = mRes.data;
+
     let html = `<input class="search-input" placeholder="🔍 名前・会社名で検索..." oninput="filterMembers(this.value)">
       <div id="members-list">`;
-    if (res.data.length === 0) html += '<div class="empty">会員データがありません</div>';
-    res.data.forEach(m => { html += memberCard(m); });
+    if (users.length === 0) html += '<div class="empty">データがありません</div>';
+    users.forEach(m => {
+      const cm = allMembers.find(x => x.user_id === m.id);
+      const cmRole = cm ? { chair:'委員長', vice_chair:'副委員長', vice_director:'担当副理事長', member:'メンバー' }[cm.role] : null;
+      html += memberCard(m, cmRole);
+    });
     html += `</div>`;
     el.innerHTML = html;
   } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
 }
 
-function memberCard(m) {
+function memberCard(m, cmRole) {
   const initial = (m.name || '?').replace(/\s/g,'').charAt(0);
+  const roleBadge = cmRole
+    ? `<span class="badge badge-red">${cmRole}</span>`
+    : m.committee ? `<span class="badge badge-gray">${m.committee}</span>` : '';
   return `<div class="card" onclick="showMemberDetail('${m.id}')" style="cursor:pointer" data-name="${m.name||''}" data-company="${m.company||''}">
     <div class="member-row">
       <div class="avatar">${initial}</div>
       <div class="member-info">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
           <div class="member-name">${m.name||'—'}</div>
-          <span class="badge badge-red">${m.committee || roleLabel(m.role)}</span>
+          ${roleBadge}
         </div>
         <div class="member-sub" style="margin-top:6px">${m.company||''}</div>
-        <div class="member-sub">${m.position||''}</div>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">
+          ${m.position ? `<span class="badge badge-gray">${m.position}</span>` : ''}
+          ${m.committee ? `<span style="font-size:12px;color:var(--text-mid)">${m.committee}</span>` : ''}
+        </div>
       </div>
     </div>
   </div>`;
