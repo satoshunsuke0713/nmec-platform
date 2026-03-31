@@ -832,7 +832,7 @@ async function renderCommittees() {
     ]);
     const committees = cRes.data;
     const users = uRes.data;
-    const canEdit = ['admin','office'].includes(currentProfile.role);
+    const canEdit = ['admin','office','director'].includes(currentProfile.role);
 
     let html = canEdit ? `<button class="submit-btn-outline" onclick="showCommitteeForm(${JSON.stringify(users).replace(/"/g,'&quot;')})">＋ 委員会を追加</button>` : '';
 
