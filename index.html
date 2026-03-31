@@ -481,7 +481,7 @@ async function showEventDetail(id) {
     const eRes = await axios.get(API + '/events?id=eq.' + id, { headers: hdrs() });
     const aRes = await axios.get(API + '/attendances?event_id=eq.' + id + '&user_id=eq.' + currentUser.id, { headers: hdrs() });
     const allARes = await axios.get(API + '/attendances?event_id=eq.' + id, { headers: hdrs() });
-    const uRes = await axios.get(API + '/users?is_active=eq.true', { headers: hdrs() });
+    const uRes = await axios.get(API + '/users?is_active=eq.true&email=neq.info@nmec.jp&order=sort_order.asc,name.asc', { headers: hdrs() });
     const dRes = await axios.get(API + '/documents?event_id=eq.' + id + '&order=created_at.desc', { headers: hdrs() });
     const e = eRes.data[0], myAtt = aRes.data[0], allAtts = allARes.data, users = uRes.data, docs = dRes.data;
     const agenda = e.agenda || [];
@@ -779,7 +779,7 @@ async function renderMembers() {
   const el = document.getElementById('main-content');
   el.innerHTML = '<div class="loading"></div>';
   try {
-    const uRes = await axios.get(API + '/users?is_active=eq.true&order=name.asc', { headers: hdrs() });
+    const uRes = await axios.get(API + '/users?is_active=eq.true&email=neq.info@nmec.jp&order=sort_order.asc,name.asc', { headers: hdrs() });
     const mRes = await axios.get(API + '/committee_members', { headers: hdrs() });
     const users = uRes.data, allMembers = mRes.data;
     let html = '<input class="search-input" placeholder="🔍 名前・会社名で検索..." oninput="filterMembers(this.value)"><div id="members-list">';
