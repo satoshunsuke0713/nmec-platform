@@ -496,8 +496,40 @@ async function submitNewEvent() {
   const date = document.getElementById('ev-date').value;
   if (!title || !date) { alert('タイトルと日時は必須です'); return; }
   try {
-    await axios.post(API + '/events', { title, type: document.getElementById('ev-type').value, date: new Date(date).toISOString(), location: document.getElementById('ev-location').value, description: document.getElementById('ev-desc').value, committee: document.getElementById('ev-committee').value || null, rsvp_deadline: document.getElementById('ev-deadline').value ? new Date(document.getElementById('ev-deadline').value).toISOString() : null, status: 'published', created_by: currentUser.id }, { headers: hdrs() });
-    alert('作成しました！'); navigate('events');
+    const eventDate = new Date(date);
+    const dateStr = eventDate.getFullYear() + '年' + (eventDate.getMonth()+1) + '月' + eventDate.getDate() + '日 ' + eventDate.getHours() + ':' + String(eventDate.getMinutes()).padStart(2,'0');
+    const type = document.getElementById('ev-type').value;
+    const location = document.getElementById('ev-location').value;
+    const committee = document.getElementById('ev-committee').value;
+
+    // イベント作成
+    await axios.post(API + '/events', {
+      title, type,
+      date: eventDate.toISOString(),
+      location,
+      description: document.getElementById('ev-desc').value,
+      committee: committee || null,
+      rsvp_deadline: document.getElementById('ev-deadline').value ? new Date(document.getElementById('ev-deadline').value).toISOString() : null,
+      status: 'published',
+      created_by: currentUser.id
+    }, { headers: hdrs() });
+
+    // 自動お知らせ作成
+    const noticeBody = '【' + typeLabel(type) + '】' + title + ' の開催が登録されました。\n\n' +
+      '📅 日時：' + dateStr + '\n' +
+      (location ? '📍 場所：' + location + '\n' : '') +
+      (committee ? '🏛️ 担当委員会：' + committee + '\n' : '') +
+      '\n詳細は「会議・事業」メニューよりご確認ください。';
+
+    await axios.post(API + '/notices', {
+      title: '【' + typeLabel(type) + '】' + title + ' が登録されました',
+      body: noticeBody,
+      priority: 'normal',
+      created_by: currentUser.id
+    }, { headers: hdrs() });
+
+    alert('作成しました！お知らせも自動配信されました😊');
+    navigate('events');
   } catch(e) { alert('作成に失敗しました'); }
 }
 
@@ -631,7 +663,7 @@ async function showNoticeDetail(id) {
 
 function showNoticeForm() {
   const el = document.getElementById('main-content');
-  el.innerHTML = '<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">🔔 お知らせを投稿</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="no-title" placeholder="タイトルを入力"></div><div class="form-group-inline"><label>本文</label><textarea id="no-body" placeholder="内容を入力" style="min-height:140px"></textarea></div><div class="form-group-inline"><label>優先度</label><select id="no-priority"><option value="normal">通常</option><option value="important">重要</option></select></div><div class="form-group-inline"><label>添付ファイル（任意）</label><input type="file" id="no-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div><button class="submit-btn" onclick="submitNewNotice()">投稿する</button></div>';
+  el.innerHTML = '<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">🔔 お知らせを投稿</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="no-title" placeholder="タイトルを入力"></div><div class="form-group-inline"><label>本文</label><textarea id="no-body" placeholder="内容を入力" style="min-height:140px"></textarea></div><div class="form-group-inline"><label>優先度</label><select id="no-priority"><option value="normal">通常</option><option value="important">重要</option></select></div><div class="form-group-inline"><label>添付ファイル（任意）</label><select id="no-file-category" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><option value="">カテゴリを選択...</option><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select><input type="file" id="no-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div><button class="submit-btn" onclick="submitNewNotice()">投稿する</button></div>';
 }
 
 async function submitNewNotice() {
@@ -642,11 +674,23 @@ async function submitNewNotice() {
   try {
     let fileUrl = null;
     const file = document.getElementById('no-file').files[0];
+    const fileCat = document.getElementById('no-file-category').value;
     if (file) {
       const ext = file.name.split('.').pop();
       const filePath = 'notices/' + Date.now() + '.' + ext;
       await axios.post(SUPABASE_URL + '/storage/v1/object/documents/' + filePath, file, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + accessToken, 'Content-Type': file.type } });
       fileUrl = SUPABASE_URL + '/storage/v1/object/public/documents/' + filePath;
+      // 資料ライブラリにも保存
+      if (fileCat) {
+        await axios.post(API + '/documents', {
+          name: title + '（添付）',
+          file_url: fileUrl,
+          file_size: (file.size / 1024).toFixed(0) + 'KB',
+          category: fileCat,
+          year: new Date().getFullYear(),
+          uploaded_by: currentUser.id
+        }, { headers: hdrs() });
+      }
     }
     await axios.post(API + '/notices', { title, body: document.getElementById('no-body').value, priority: document.getElementById('no-priority').value, file_url: fileUrl, created_by: currentUser.id }, { headers: hdrs() });
     alert('投稿しました！'); navigate('notices');
