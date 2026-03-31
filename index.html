@@ -1,110 +1,1106 @@
-const { Resend } = require('resend');
-const { createClient } = require('@supabase/supabase-js');
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>N-MEC 会員プラットフォーム</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.0/axios.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; background: #f5f5f5; color: #1a1a1a; }
+:root {
+  --red: #CC0000; --red-dark: #990000; --red-light: #fff0f0;
+  --white: #ffffff; --gray: #f5f5f5; --gray-mid: #e0e0e0;
+  --gray-dark: #333333; --text: #1a1a1a; --text-mid: #666666; --gold: #C9A84C;
+}
+#auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; background: #1a1a1a; }
+.auth-box { background: var(--white); border-radius: 4px; padding: 48px 40px; width: 100%; max-width: 420px; box-shadow: 0 8px 40px rgba(0,0,0,0.4); }
+.auth-logo { display: flex; align-items: center; gap: 20px; margin-bottom: 36px; padding-bottom: 28px; border-bottom: 2px solid var(--red); }
+.logo-mark { width: 72px; height: 88px; background: var(--red); display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; padding: 8px; }
+.logo-n { font-size: 38px; font-weight: 900; color: var(--white); line-height: 1; }
+.logo-mec { font-size: 18px; font-weight: 900; color: var(--white); line-height: 1; letter-spacing: 2px; }
+.auth-logo-text h1 { font-size: 15px; font-weight: 800; color: var(--gray-dark); line-height: 1.4; }
+.auth-logo-text p { font-size: 11px; color: var(--text-mid); margin-top: 4px; line-height: 1.5; }
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; font-size: 13px; font-weight: 700; color: var(--gray-dark); margin-bottom: 8px; }
+.form-group input { width: 100%; padding: 14px 16px; border: 1.5px solid var(--gray-mid); border-radius: 2px; font-size: 16px; outline: none; background: #fafafa; }
+.form-group input:focus { border-color: var(--red); background: var(--white); }
+.btn-primary { width: 100%; padding: 16px; background: var(--red); color: var(--white); border: none; border-radius: 2px; font-size: 16px; font-weight: 700; cursor: pointer; letter-spacing: 1px; }
+.btn-primary:hover { background: var(--red-dark); }
+.auth-switch { text-align: center; margin-top: 20px; font-size: 14px; color: var(--text-mid); }
+.auth-switch a { color: var(--red); cursor: pointer; font-weight: 700; }
+.error-msg { background: var(--red-light); color: var(--red); padding: 12px 16px; border-left: 4px solid var(--red); border-radius: 2px; font-size: 14px; margin-bottom: 20px; }
+#app-screen { display: none; }
+.header { height: 64px; background: var(--red); display: flex; align-items: center; padding: 0 20px; gap: 16px; position: sticky; top: 0; z-index: 50; box-shadow: 0 2px 12px rgba(0,0,0,0.2); }
+.header-menu { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--white); padding: 4px; }
+.header-logo { display: flex; align-items: center; gap: 10px; flex: 1; }
+.header-logo-mark { width: 36px; height: 44px; background: var(--white); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.header-logo-n { font-size: 20px; font-weight: 900; color: var(--red); line-height: 1; }
+.header-logo-mec { font-size: 9px; font-weight: 900; color: var(--red); line-height: 1; letter-spacing: 1px; }
+.header-title { font-size: 16px; font-weight: 700; color: var(--white); letter-spacing: 1px; }
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 99; }
+.sidebar { width: 280px; background: #1a1a1a; height: 100vh; display: flex; flex-direction: column; position: fixed; left: -280px; top: 0; z-index: 100; transition: left 0.3s; }
+.sidebar.open { left: 0; }
+.sidebar-header { padding: 0 24px; background: var(--red); display: flex; align-items: center; gap: 16px; height: 100px; }
+.sidebar-logo-mark { width: 52px; height: 64px; background: var(--white); display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; }
+.sidebar-logo-n { font-size: 28px; font-weight: 900; color: var(--red); line-height: 1; }
+.sidebar-logo-mec { font-size: 13px; font-weight: 900; color: var(--red); line-height: 1; letter-spacing: 2px; }
+.sidebar-header-text h2 { font-size: 13px; font-weight: 700; color: var(--white); line-height: 1.5; }
+.sidebar-header-text p { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 2px; }
+.nav-item { padding: 14px 24px; cursor: pointer; display: flex; align-items: center; gap: 14px; color: rgba(255,255,255,0.6); font-size: 15px; border-left: 3px solid transparent; transition: all 0.15s; }
+.nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9); }
+.nav-item.active { background: rgba(204,0,0,0.2); border-left-color: var(--red); color: var(--white); font-weight: 700; }
+.nav-icon { font-size: 18px; width: 24px; text-align: center; }
+.sidebar-user { padding: 20px 24px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: auto; }
+.sidebar-user-role { font-size: 11px; color: var(--red); letter-spacing: 1px; font-weight: 700; margin-bottom: 4px; }
+.sidebar-user-name { font-size: 16px; font-weight: 700; color: var(--white); }
+.sidebar-user-company { font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+.logout-btn { margin-top: 14px; background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.15); border-radius: 2px; padding: 8px 16px; font-size: 13px; cursor: pointer; width: 100%; }
+.main { padding: 20px 16px; max-width: 720px; margin: 0 auto; }
+.bottom-nav { background: var(--white); border-top: 2px solid var(--red); display: flex; justify-content: space-around; padding: 8px 0; position: sticky; bottom: 0; z-index: 40; }
+.bottom-nav button { display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none; cursor: pointer; padding: 6px 8px; color: var(--text-mid); font-size: 10px; font-weight: 600; }
+.bottom-nav button.active { color: var(--red); }
+.bn-icon { font-size: 22px; }
+.card { background: var(--white); border-radius: 4px; padding: 24px; box-shadow: 0 1px 6px rgba(0,0,0,0.08); margin-bottom: 16px; border-top: 3px solid transparent; }
+.card-accent { border-top-color: var(--red); }
+.section-title { font-size: 11px; font-weight: 800; color: var(--text-mid); margin-bottom: 16px; letter-spacing: 2px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--gray-mid); }
+.badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 2px; font-weight: 700; white-space: nowrap; letter-spacing: 0.5px; }
+.badge-red { background: var(--red); color: var(--white); }
+.badge-dark { background: var(--gray-dark); color: var(--white); }
+.badge-gray { background: var(--gray-mid); color: var(--text-mid); }
+.badge-green { background: #1a7a4a; color: var(--white); }
+.welcome-card { background: var(--red); border-radius: 4px; padding: 28px 24px; color: var(--white); margin-bottom: 16px; position: relative; overflow: hidden; }
+.welcome-card::before { content: 'N'; position: absolute; right: -10px; top: -20px; font-size: 140px; font-weight: 900; color: rgba(255,255,255,0.08); line-height: 1; pointer-events: none; }
+.welcome-card small { font-size: 12px; opacity: 0.7; letter-spacing: 1px; }
+.welcome-card h2 { font-size: 22px; font-weight: 800; margin-top: 6px; }
+.welcome-card p { font-size: 13px; opacity: 0.75; margin-top: 6px; }
+.row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--gray); }
+.row:last-child { border-bottom: none; }
+.row-title { font-weight: 700; font-size: 15px; color: var(--text); }
+.row-sub { font-size: 13px; color: var(--text-mid); margin-top: 4px; }
+.back-btn { background: none; border: none; color: var(--red); cursor: pointer; font-size: 15px; margin-bottom: 20px; padding: 0; font-weight: 700; }
+.detail-title { font-size: 20px; font-weight: 800; color: var(--gray-dark); margin: 12px 0 20px; line-height: 1.4; }
+.detail-row { padding: 12px 0; border-bottom: 1px solid var(--gray); display: flex; gap: 16px; }
+.detail-label { font-size: 12px; color: var(--text-mid); width: 80px; flex-shrink: 0; font-weight: 700; padding-top: 2px; }
+.detail-value { font-size: 15px; color: var(--text); }
+.rsvp-btns { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.rsvp-btn { padding: 14px 24px; border: 2px solid var(--gray-mid); border-radius: 4px; background: var(--white); cursor: pointer; font-size: 15px; font-weight: 700; color: var(--text); }
+.rsvp-btn.selected-attend { background: #e8f5e9; border-color: #2e7d32; color: #2e7d32; }
+.rsvp-btn.selected-absent { background: var(--red-light); border-color: var(--red); color: var(--red); }
+.rsvp-btn.selected-pending { background: #fff8e1; border-color: #f59e0b; color: #92400e; }
+.search-input { width: 100%; padding: 14px 18px; border: 1.5px solid var(--gray-mid); border-radius: 4px; font-size: 16px; outline: none; margin-bottom: 16px; background: var(--white); }
+.search-input:focus { border-color: var(--red); }
+.filter-btns { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.filter-btn { padding: 8px 14px; border-radius: 2px; border: 1.5px solid var(--gray-mid); cursor: pointer; font-size: 13px; font-weight: 700; background: var(--white); color: var(--text-mid); }
+.filter-btn.active { background: var(--red); color: var(--white); border-color: var(--red); }
+.avatar { width: 48px; height: 48px; border-radius: 2px; background: var(--red); display: flex; align-items: center; justify-content: center; color: var(--white); font-size: 20px; font-weight: 800; flex-shrink: 0; }
+.avatar-lg { width: 72px; height: 72px; font-size: 28px; }
+.member-row { display: flex; gap: 16px; align-items: center; }
+.member-info { flex: 1; }
+.member-name { font-weight: 800; font-size: 16px; color: var(--text); }
+.member-sub { font-size: 13px; color: var(--text-mid); margin-top: 4px; }
+.doc-row { display: flex; gap: 14px; align-items: center; }
+.doc-info { flex: 1; }
+.doc-name { font-weight: 700; font-size: 15px; color: var(--text); }
+.doc-meta { font-size: 13px; color: var(--text-mid); margin-top: 4px; }
+.dl-btn { padding: 8px 16px; background: var(--red); color: var(--white); border: none; border-radius: 2px; font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.form-group-inline { margin-bottom: 18px; }
+.form-group-inline label { display: block; font-size: 13px; font-weight: 700; color: var(--gray-dark); margin-bottom: 8px; }
+.form-group-inline input, .form-group-inline select, .form-group-inline textarea { width: 100%; padding: 12px 16px; border: 1.5px solid var(--gray-mid); border-radius: 2px; font-size: 15px; outline: none; background: #fafafa; }
+.form-group-inline textarea { resize: vertical; min-height: 100px; }
+.submit-btn { width: 100%; padding: 16px; background: var(--red); color: var(--white); border: none; border-radius: 2px; font-size: 16px; font-weight: 800; cursor: pointer; margin-top: 8px; letter-spacing: 1px; }
+.submit-btn:hover { background: var(--red-dark); }
+.submit-btn-outline { width: 100%; padding: 14px; background: var(--white); color: var(--red); border: 2px solid var(--red); border-radius: 2px; font-size: 15px; font-weight: 800; cursor: pointer; margin-bottom: 12px; }
+.loading { text-align: center; padding: 60px 20px; color: var(--text-mid); font-size: 15px; }
+.loading::before { content: ''; display: block; width: 40px; height: 40px; border: 3px solid var(--gray-mid); border-top-color: var(--red); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty { text-align: center; padding: 60px 20px; color: #aaa; font-size: 15px; }
+</style>
+</head>
+<body>
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="logo-mark">
+        <div class="logo-n">N</div>
+        <div class="logo-mec">MEC</div>
+      </div>
+      <div class="auth-logo-text">
+        <h1>新潟市異業種交流<br>研究会協同組合</h1>
+        <p>Niigata City Multi-Enterprise<br>Exchange Cooperative Union</p>
+      </div>
+    </div>
+    <div id="auth-error" class="error-msg" style="display:none"></div>
+    <div id="login-form">
+      <div class="form-group">
+        <label>メールアドレス</label>
+        <input type="email" id="login-email" placeholder="example@email.com">
+      </div>
+      <div class="form-group">
+        <label>パスワード</label>
+        <input type="password" id="login-password" placeholder="パスワードを入力">
+      </div>
+      <button class="btn-primary" onclick="login()">ログイン</button>
+      <div class="auth-switch">アカウントがない方は <a onclick="toggleForm('signup')">新規登録</a></div>
+    </div>
+    <div id="signup-form" style="display:none">
+      <div class="form-group">
+        <label>お名前</label>
+        <input type="text" id="signup-name" placeholder="山田 太郎">
+      </div>
+      <div class="form-group">
+        <label>会社名</label>
+        <input type="text" id="signup-company" placeholder="株式会社〇〇">
+      </div>
+      <div class="form-group">
+        <label>メールアドレス</label>
+        <input type="email" id="signup-email" placeholder="example@email.com">
+      </div>
+      <div class="form-group">
+        <label>パスワード</label>
+        <input type="password" id="signup-password" placeholder="8文字以上">
+      </div>
+      <button class="btn-primary" onclick="signup()">新規登録</button>
+      <div class="auth-switch">すでにアカウントをお持ちの方は <a onclick="toggleForm('login')">ログイン</a></div>
+    </div>
+  </div>
+</div>
 
-module.exports = async function handler(req, res) {
-  // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+<div id="app-screen">
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo-mark">
+        <div class="sidebar-logo-n">N</div>
+        <div class="sidebar-logo-mec">MEC</div>
+      </div>
+      <div class="sidebar-header-text">
+        <h2>新潟市異業種交流<br>研究会協同組合</h2>
+        <p>会員専用プラットフォーム</p>
+      </div>
+    </div>
+    <div style="padding:12px 0;flex:1;overflow-y:auto">
+      <div class="nav-item active" id="nav-dashboard" onclick="navigate('dashboard')"><span class="nav-icon">🏠</span>ダッシュボード</div>
+      <div class="nav-item" id="nav-events" onclick="navigate('events')"><span class="nav-icon">📅</span>三役・理事会・例会</div>
+      <div class="nav-item" id="nav-motions" onclick="navigate('motions')"><span class="nav-icon">📁</span>資料</div>
+      <div class="nav-item" id="nav-members" onclick="navigate('members')"><span class="nav-icon">👥</span>理事メンバー</div>
+      <div class="nav-item" id="nav-committees" onclick="navigate('committees')"><span class="nav-icon">🏛️</span>委員会管理</div>
+      <div class="nav-item" id="nav-documents" onclick="navigate('documents')"><span class="nav-icon">📁</span>資料ライブラリ</div>
+      <div class="nav-item" id="nav-notices" onclick="navigate('notices')"><span class="nav-icon">🔔</span>お知らせ</div>
+    </div>
+    <div class="sidebar-user">
+      <div class="sidebar-user-role" id="sb-role">—</div>
+      <div class="sidebar-user-name" id="sb-name">—</div>
+      <div class="sidebar-user-company" id="sb-company">—</div>
+      <button class="logout-btn" onclick="logout()">ログアウト</button>
+    </div>
+  </div>
 
-  const { type, title, body, eventDate, location, committee } = req.body;
+  <div class="header">
+    <button class="header-menu" onclick="toggleSidebar()">☰</button>
+    <div class="header-logo">
+      <div class="header-logo-mark">
+        <div class="header-logo-n">N</div>
+        <div class="header-logo-mec">MEC</div>
+      </div>
+      <div class="header-title" id="header-title">ダッシュボード</div>
+    </div>
+  </div>
 
+  <div class="main" id="main-content"></div>
+
+  <div class="bottom-nav">
+    <button onclick="navigate('dashboard')" id="bn-dashboard" class="active">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      ホーム
+    </button>
+    <button onclick="navigate('events')" id="bn-events">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      会議・事業
+    </button>
+    <button onclick="navigate('motions')" id="bn-motions">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      資料
+    </button>
+    <button onclick="navigate('members')" id="bn-members">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      理事
+    </button>
+    <button onclick="navigate('committees')" id="bn-committees">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      委員会
+    </button>
+    <button onclick="navigate('notices')" id="bn-notices">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      お知らせ
+    </button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://cadindivyghcjlbetsoi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhZGluZGl2eWdoY2psYmV0c29pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTgzMDQsImV4cCI6MjA5MDM5NDMwNH0.teIhuA9o6NsuLE_QmYsIYmISf0dxG0FsCBQHPkixm2c';
+const API = SUPABASE_URL + '/rest/v1';
+const AUTH = SUPABASE_URL + '/auth/v1';
+
+let currentUser = null, currentProfile = null, currentPage = 'dashboard', accessToken = null;
+const hdrs = () => ({ 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + (accessToken || SUPABASE_KEY) });
+
+function toggleForm(type) {
+  document.getElementById('login-form').style.display = type === 'login' ? 'block' : 'none';
+  document.getElementById('signup-form').style.display = type === 'signup' ? 'block' : 'none';
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+// URLパラメータチェック（rsvp=イベントID）
+function checkRsvpUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const rsvpId = params.get('rsvp');
+  if (rsvpId) {
+    window._pendingRsvp = rsvpId;
+    // ログイン後に出欠画面へ
+  }
+}
+
+async function login() {
+  const email = document.getElementById('login-email').value;
+  const pw = document.getElementById('login-password').value;
   try {
-    // emailModeに応じて送信対象を絞る
-    let query = supabase.from('users').select('email, name').eq('is_active', true).neq('email', 'info@nmec.jp');
+    const res = await axios.post(AUTH + '/token?grant_type=password', { email, password: pw }, { headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY } });
+    accessToken = res.data.access_token; currentUser = res.data.user;
+    await loadProfile(); showApp();
+  } catch(e) { showError('メールアドレスまたはパスワードが正しくありません'); }
+}
 
-    if (emailMode === 'directors') {
-      // 理事長・副理事長のみ（sort_order 1〜6）
-      query = query.lte('sort_order', 6);
+async function signup() {
+  const name = document.getElementById('signup-name').value;
+  const company = document.getElementById('signup-company').value;
+  const email = document.getElementById('signup-email').value;
+  const pw = document.getElementById('signup-password').value;
+  if (!name || !email || !pw) { showError('必須項目を入力してください'); return; }
+  try {
+    const res = await axios.post(AUTH + '/signup', { email, password: pw }, { headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY } });
+    accessToken = res.data.access_token; currentUser = res.data.user;
+    await axios.post(API + '/users', { id: currentUser.id, email, name, company, role: 'member' }, { headers: hdrs() });
+    await loadProfile(); showApp();
+  } catch(e) { showError('登録に失敗しました。メールアドレスをご確認ください。'); }
+}
+
+async function logout() {
+  try { await axios.post(AUTH + '/logout', {}, { headers: hdrs() }); } catch(e) {}
+  accessToken = null; currentUser = null; currentProfile = null;
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+}
+
+async function loadProfile() {
+  try {
+    const res = await axios.get(API + '/users?id=eq.' + currentUser.id, { headers: hdrs() });
+    currentProfile = res.data[0] || { name: currentUser.email, role: 'member', company: '' };
+  } catch(e) { currentProfile = { name: currentUser.email, role: 'member', company: '' }; }
+}
+
+function showError(msg) { const el = document.getElementById('auth-error'); el.textContent = msg; el.style.display = 'block'; }
+
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  document.getElementById('sb-name').textContent = currentProfile.name || '—';
+  document.getElementById('sb-company').textContent = currentProfile.company || '—';
+  document.getElementById('sb-role').textContent = roleLabel(currentProfile.role);
+  // RSVP URLからのアクセス
+  if (window._pendingRsvp) {
+    const rsvpId = window._pendingRsvp;
+    window._pendingRsvp = null;
+    navigate('events');
+    showEventDetail(rsvpId);
+  } else {
+    navigate('dashboard');
+  }
+}
+
+// ページ読み込み時にURLチェック
+checkRsvpUrl();
+
+function roleLabel(r) { return { admin:'管理者', office:'事務局', director:'理事・委員長', member:'一般会員' }[r] || r; }
+function typeLabel(t) { return { sanyaku:'三役会議', rijikai:'理事会', reikai:'例会', iinkai:'委員会', jigyou:'その他事業', other:'その他' }[t] || t; }
+function fmtDate(d) { const dt = new Date(d); return dt.getFullYear() + '年' + (dt.getMonth()+1) + '月' + dt.getDate() + '日 ' + dt.getHours() + ':' + String(dt.getMinutes()).padStart(2,'0'); }
+function fmtDateShort(d) { const dt = new Date(d); return dt.getFullYear() + '/' + (dt.getMonth()+1) + '/' + dt.getDate(); }
+
+function navigate(page) {
+  currentPage = page;
+  closeSidebar();
+  const titles = { dashboard:'ダッシュボード', events:'会議・事業', motions:'資料', members:'理事メンバー', documents:'資料ライブラリ', notices:'お知らせ', committees:'委員会管理' };
+  document.getElementById('header-title').textContent = titles[page] || '';
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav button').forEach(el => el.classList.remove('active'));
+  const ni = document.getElementById('nav-' + page), bi = document.getElementById('bn-' + page);
+  if (ni) ni.classList.add('active');
+  if (bi) bi.classList.add('active');
+  const pages = { dashboard: renderDashboard, events: renderEvents, motions: renderMotions, members: renderMembers, documents: renderDocuments, notices: renderNotices, committees: renderCommittees };
+  if (pages[page]) pages[page]();
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').style.display = document.getElementById('sidebar').classList.contains('open') ? 'block' : 'none';
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').style.display = 'none';
+}
+
+async function autoCloseEvents() {
+  try {
+    await axios.patch(API + '/events?status=eq.published&date=lt.' + new Date().toISOString(),
+      { status: 'done' },
+      { headers: Object.assign({}, hdrs(), { 'Prefer': 'return=minimal' }) }
+    );
+  } catch(e) {}
+}
+
+async function renderDashboard() {
+  await autoCloseEvents();
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const [evRes, notRes] = await Promise.all([
+      axios.get(API + '/events?status=eq.published&order=date.asc&limit=3', { headers: hdrs() }),
+      axios.get(API + '/notices?order=created_at.desc&limit=3', { headers: hdrs() })
+    ]);
+    let html = '<div class="welcome-card"><small>WELCOME</small><h2>' + (currentProfile.name||'') + ' 様</h2><p>' + (currentProfile.company||'') + '　|　' + roleLabel(currentProfile.role) + '</p></div>';
+    if (evRes.data.length > 0) {
+      html += '<div class="card card-accent"><div class="section-title">📅 次回の予定</div>';
+      evRes.data.forEach(function(e) {
+        html += '<div class="row" onclick="showEventDetail(\'' + e.id + '\')" style="cursor:pointer"><div><div class="row-title">' + e.title + '</div><div class="row-sub">🕐 ' + fmtDate(e.date) + '　📍 ' + (e.location||'') + '</div></div><span class="badge badge-red">' + typeLabel(e.type) + '</span></div>';
+      });
+      html += '</div>';
+    }
+    if (notRes.data.length > 0) {
+      html += '<div class="card"><div class="section-title">🔔 新着お知らせ</div>';
+      notRes.data.forEach(function(n) {
+        html += '<div class="row" onclick="showNoticeDetail(\'' + n.id + '\')" style="cursor:pointer"><div>' + (n.priority==='important' ? '<span class="badge badge-red" style="margin-bottom:6px;display:inline-block">重要</span><br>' : '') + '<div class="row-title">' + n.title + '</div><div class="row-sub">' + fmtDateShort(n.created_at) + '</div></div></div>';
+      });
+      html += '</div>';
+    }
+    if (evRes.data.length === 0 && notRes.data.length === 0) html += '<div class="empty">データがまだありません</div>';
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty">データの読み込みに失敗しました</div>'; }
+}
+
+async function renderEvents() {
+  await autoCloseEvents();
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const res = await axios.get(API + '/events?order=date.desc', { headers: hdrs() });
+    const canCreate = ['admin','office','director'].includes(currentProfile.role);
+    let html = '<div class="filter-btns"><button class="filter-btn active" onclick="filterEvents(\'all\',this)">すべて</button><button class="filter-btn" onclick="filterEvents(\'sanyaku\',this)">三役会議</button><button class="filter-btn" onclick="filterEvents(\'rijikai\',this)">理事会</button><button class="filter-btn" onclick="filterEvents(\'reikai\',this)">例会</button><button class="filter-btn" onclick="filterEvents(\'iinkai\',this)">委員会</button><button class="filter-btn" onclick="filterEvents(\'jigyou\',this)">その他事業</button></div>';
+    if (canCreate) html += '<button class="submit-btn-outline" onclick="showEventForm()">＋ イベントを作成</button>';
+    html += '<div id="events-list">';
+    if (res.data.length === 0) html += '<div class="empty">予定がまだありません</div>';
+    res.data.forEach(function(e) { html += eventCard(e); });
+    html += '</div>';
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function eventCard(e) {
+  const statusBadge = e.status === 'done' ? '<span class="badge badge-gray">終了</span>' : '<span class="badge badge-green">開催予定</span>';
+  const canEdit = ['admin','office','director'].includes(currentProfile ? currentProfile.role : '');
+  return '<div class="card" data-type="' + e.type + '"><div style="display:flex;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px"><div style="display:flex;gap:6px"><span class="badge badge-red">' + typeLabel(e.type) + '</span>' + statusBadge + '</div>' + (canEdit ? '<div style="display:flex;gap:6px"><button onclick="showEventEditForm(\'' + e.id + '\')" style="background:none;border:1px solid var(--gray-mid);border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text-mid)">編集</button><button onclick="deleteEvent(\'' + e.id + '\')" style="background:none;border:1px solid #ccc;border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer;color:#999">削除</button></div>' : '') + '</div><div class="row-title" style="font-size:17px;margin-bottom:8px;cursor:pointer" onclick="showEventDetail(\'' + e.id + '\')">' + e.title + '</div><div class="row-sub" onclick="showEventDetail(\'' + e.id + '\')" style="cursor:pointer">🕐 ' + fmtDate(e.date) + '　📍 ' + (e.location||'場所未定') + '</div>' + (e.committee ? '<div class="row-sub" style="margin-top:4px">🏛️ ' + e.committee + '</div>' : '') + '</div>';
+}
+
+async function deleteEvent(id) {
+  if (!confirm('この会議・事業を削除しますか？')) return;
+  try {
+    await axios.delete(API + '/events?id=eq.' + id, { headers: hdrs() });
+    navigate('events');
+  } catch(e) { alert('削除に失敗しました'); }
+}
+
+async function showEventEditForm(id) {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const eRes = await axios.get(API + '/events?id=eq.' + id, { headers: hdrs() });
+    const e = eRes.data[0];
+    const cRes = await axios.get(API + '/committees?order=sort_order.asc', { headers: hdrs() });
+    const committeeOptions = cRes.data.map(function(c) { return '<option value="' + c.name + '"' + (e.committee===c.name?' selected':'') + '>' + c.name + '</option>'; }).join('');
+    const dt = new Date(e.date);
+    const dtLocal = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0') + 'T' + String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0');
+    el.innerHTML = '<button class="back-btn" onclick="navigate(\'events\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">📅 会議・事業を編集</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="ev-title" value="' + e.title + '"></div><div class="form-group-inline"><label>種別 *</label><select id="ev-type"><option value="sanyaku"' + (e.type==='sanyaku'?' selected':'') + '>三役会議</option><option value="rijikai"' + (e.type==='rijikai'?' selected':'') + '>理事会</option><option value="reikai"' + (e.type==='reikai'?' selected':'') + '>例会</option><option value="iinkai"' + (e.type==='iinkai'?' selected':'') + '>委員会</option><option value="jigyou"' + (e.type==='jigyou'?' selected':'') + '>その他事業</option><option value="other"' + (e.type==='other'?' selected':'') + '>その他</option></select></div><div class="form-group-inline"><label>担当委員会</label><select id="ev-committee"><option value="">なし（全体）</option>' + committeeOptions + '</select></div><div class="form-group-inline"><label>日時 *</label><input type="datetime-local" id="ev-date" value="' + dtLocal + '"></div><div class="form-group-inline"><label>場所</label><input type="text" id="ev-location" value="' + (e.location||'') + '"></div><div class="form-group-inline"><label>概要</label><textarea id="ev-desc">' + (e.description||'') + '</textarea></div><div class="form-group-inline"><label>資料を追加（任意）</label><input type="text" id="ev-file-name" placeholder="ファイルの表示名（例：第148回例会 アジェンダ）" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><select id="ev-file-category" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><option value="">カテゴリを選択...</option><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select><input type="file" id="ev-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div><button class="submit-btn" onclick="updateEvent(\'' + id + '\')">更新する</button></div>';
+  } catch(e) { alert('読み込みに失敗しました'); }
+}
+
+async function updateEvent(id) {
+  const title = document.getElementById('ev-title').value;
+  const date = document.getElementById('ev-date').value;
+  if (!title || !date) { alert('タイトルと日時は必須です'); return; }
+  const btn = document.querySelector('#main-content .submit-btn');
+  btn.textContent = '更新中...'; btn.disabled = true;
+  try {
+    await axios.patch(API + '/events?id=eq.' + id, { title, type: document.getElementById('ev-type').value, date: new Date(date).toISOString(), location: document.getElementById('ev-location').value, description: document.getElementById('ev-desc').value, committee: document.getElementById('ev-committee').value || null }, { headers: Object.assign({}, hdrs(), { 'Prefer': 'return=minimal' }) });
+    // ファイルアップロード
+    const file = document.getElementById('ev-file') ? document.getElementById('ev-file').files[0] : null;
+    const fileCat = document.getElementById('ev-file-category') ? document.getElementById('ev-file-category').value : '';
+    const fileDisplayName = document.getElementById('ev-file-name') ? document.getElementById('ev-file-name').value : '';
+    if (file) {
+      const ext = file.name.split('.').pop();
+      const filePath = 'events/' + id + '/' + Date.now() + '.' + ext;
+      await axios.post(SUPABASE_URL + '/storage/v1/object/documents/' + filePath, file, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + accessToken, 'Content-Type': file.type } });
+      const fileUrl = SUPABASE_URL + '/storage/v1/object/public/documents/' + filePath;
+      await axios.post(API + '/documents', {
+        name: fileDisplayName || title + '（資料）',
+        event_id: id,
+        file_url: fileUrl,
+        file_size: (file.size / 1024).toFixed(0) + 'KB',
+        category: fileCat || 'other',
+        year: new Date().getFullYear(),
+        uploaded_by: currentUser.id
+      }, { headers: hdrs() });
+    }
+    alert('更新しました！'); navigate('events');
+  } catch(e) { alert('更新に失敗しました'); btn.textContent = '更新する'; btn.disabled = false; }
+}
+
+function filterEvents(type, btn) {
+  document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  document.querySelectorAll('#events-list .card').forEach(function(card) {
+    card.style.display = (type === 'all' || card.dataset.type === type) ? 'block' : 'none';
+  });
+}
+
+async function showEventDetail(id) {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const eRes = await axios.get(API + '/events?id=eq.' + id, { headers: hdrs() });
+    const aRes = await axios.get(API + '/attendances?event_id=eq.' + id + '&user_id=eq.' + currentUser.id, { headers: hdrs() });
+    const allARes = await axios.get(API + '/attendances?event_id=eq.' + id, { headers: hdrs() });
+    const uRes = await axios.get(API + '/users?is_active=eq.true&email=neq.info@nmec.jp&order=sort_order.asc,name.asc', { headers: hdrs() });
+    const dRes = await axios.get(API + '/documents?event_id=eq.' + id + '&order=created_at.desc', { headers: hdrs() });
+    const e = eRes.data[0], myAtt = aRes.data[0], allAtts = allARes.data, users = uRes.data, docs = dRes.data;
+    const agenda = e.agenda || [];
+    const cur = myAtt ? myAtt.status : null;
+    const canUpload = ['admin','office','director'].includes(currentProfile.role);
+    const canSeeAll = true; // 全員が出欠状況を確認可能
+    const rsvpUrl = window.location.origin + window.location.pathname + '?rsvp=' + id;
+
+    // 出欠回答
+    let rsvpHtml = '';
+    if (e.status === 'published') {
+      rsvpHtml = '<div class="card card-accent"><div class="section-title">✋ 出欠回答</div>' +
+        (cur ? '<p style="font-size:14px;color:var(--text-mid);margin-bottom:12px">現在の回答：<span class="badge ' + (cur==='attend'?'badge-green':cur==='absent'?'badge-red':'badge-gray') + '">' + (cur==='attend'?'出席':cur==='absent'?'欠席':'保留') + '</span></p>' : '') +
+        '<div class="rsvp-btns"><button class="rsvp-btn ' + (cur==='attend'?'selected-attend':'') + '" onclick="submitRsvp(\'' + id + '\',\'attend\',\'' + (myAtt?myAtt.id:'') + '\')">✅ 出席</button><button class="rsvp-btn ' + (cur==='absent'?'selected-absent':'') + '" onclick="submitRsvp(\'' + id + '\',\'absent\',\'' + (myAtt?myAtt.id:'') + '\')">❌ 欠席</button><button class="rsvp-btn ' + (cur==='pending'?'selected-pending':'') + '" onclick="submitRsvp(\'' + id + '\',\'pending\',\'' + (myAtt?myAtt.id:'') + '\')">🤔 保留</button></div></div>';
+    }
+
+    // 出欠集計・一覧
+    let rsvpListHtml = '';
+    if (canSeeAll) {
+      const attendCount = allAtts.filter(function(a) { return a.status === 'attend'; }).length;
+      const absentCount = allAtts.filter(function(a) { return a.status === 'absent'; }).length;
+      const pendingCount = allAtts.filter(function(a) { return a.status === 'pending'; }).length;
+      const answeredIds = allAtts.map(function(a) { return a.user_id; });
+      const unansweredCount = users.filter(function(u) { return !answeredIds.includes(u.id); }).length;
+
+      rsvpListHtml = '<div class="card"><div class="section-title">📊 出欠集計</div>' +
+        '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">' +
+        '<div style="text-align:center;background:#e8f5e9;border-radius:8px;padding:12px 20px;flex:1"><div style="font-size:28px;font-weight:800;color:#2e7d32">' + attendCount + '</div><div style="font-size:12px;color:#2e7d32;font-weight:700">出席</div></div>' +
+        '<div style="text-align:center;background:#fef2f2;border-radius:8px;padding:12px 20px;flex:1"><div style="font-size:28px;font-weight:800;color:var(--red)">' + absentCount + '</div><div style="font-size:12px;color:var(--red);font-weight:700">欠席</div></div>' +
+        '<div style="text-align:center;background:#fff8e1;border-radius:8px;padding:12px 20px;flex:1"><div style="font-size:28px;font-weight:800;color:#f59e0b">' + pendingCount + '</div><div style="font-size:12px;color:#f59e0b;font-weight:700">保留</div></div>' +
+        '<div style="text-align:center;background:#f5f5f5;border-radius:8px;padding:12px 20px;flex:1"><div style="font-size:28px;font-weight:800;color:#999">' + unansweredCount + '</div><div style="font-size:12px;color:#999;font-weight:700">未回答</div></div>' +
+        '</div>';
+
+      // RSVP URL（理事以上のみ表示）
+      if (['admin','office','director'].includes(currentProfile.role)) {
+        rsvpListHtml += '<div style="background:#f8fafc;border-radius:6px;padding:12px;margin-bottom:16px">' +
+          '<div style="font-size:12px;font-weight:700;color:var(--text-mid);margin-bottom:6px">📋 出欠回答URL（メンバーに共有）</div>' +
+          '<div style="display:flex;gap:8px;align-items:center">' +
+          '<div style="font-size:12px;color:var(--text);background:#fff;border:1px solid var(--gray-mid);border-radius:4px;padding:8px;flex:1;word-break:break-all">' + rsvpUrl + '</div>' +
+          '<button onclick="copyRsvpUrl(\'' + rsvpUrl + '\')" style="background:var(--red);color:#fff;border:none;border-radius:4px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">コピー</button>' +
+          '</div></div>';
+      }
+
+      // 回答一覧
+      rsvpListHtml += '<div class="section-title">回答一覧</div>';
+      allAtts.forEach(function(a) {
+        const u = users.find(function(x) { return x.id === a.user_id; });
+        if (!u) return;
+        const cls = a.status==='attend'?'badge-green':a.status==='absent'?'badge-red':'badge-gray';
+        const lbl = a.status==='attend'?'出席':a.status==='absent'?'欠席':'保留';
+        rsvpListHtml += '<div class="row"><div><div class="row-title" style="font-size:14px">' + u.name + '</div><div class="row-sub">' + (u.company||'') + '</div>' + (a.comment ? '<div class="row-sub" style="margin-top:2px">💬 ' + a.comment + '</div>' : '') + '</div><span class="badge ' + cls + '">' + lbl + '</span></div>';
+      });
+
+      // 未回答一覧
+      if (unansweredCount > 0) {
+        rsvpListHtml += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--gray)"><div style="font-size:12px;font-weight:700;color:#999;margin-bottom:8px">未回答</div>';
+        users.filter(function(u) { return !answeredIds.includes(u.id); }).forEach(function(u) {
+          rsvpListHtml += '<div class="row"><div><div class="row-title" style="font-size:14px;color:#999">' + u.name + '</div><div class="row-sub">' + (u.company||'') + '</div></div><span class="badge badge-gray">未回答</span></div>';
+        });
+        rsvpListHtml += '</div>';
+      }
+      rsvpListHtml += '</div>';
+    }
+
+    // アジェンダ
+    let agendaHtml = '';
+    if (agenda.length > 0) {
+      agendaHtml = '<div class="card"><div class="section-title">📝 アジェンダ</div>';
+      agenda.forEach(function(a, i) { agendaHtml += '<div class="row"><span style="color:var(--red);font-weight:800;margin-right:10px">' + (i+1) + '</span><span style="font-size:15px">' + a + '</span></div>'; });
+      agendaHtml += '</div>';
+    }
+
+    // 議事録・資料
+    let docsHtml = '<div class="card"><div class="section-title">📎 議事録・資料</div>';
+    if (docs.length === 0) {
+      docsHtml += '<div style="color:#aaa;font-size:14px;padding:10px 0">資料がまだありません</div>';
     } else {
-      // 全理事及び監事（sort_order 99除外＝事務局除く）
-      query = query.lt('sort_order', 90);
-    }
-
-    const { data: users, error } = await query;
-
-    if (error) throw error;
-
-    const emails = users.map(u => u.email).filter(Boolean);
-
-    // メール本文を作成
-    let subject = '';
-    let html = '';
-
-    if (type === 'event') {
-      subject = '【N-MEC】' + title + ' が登録されました';
-      html = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #CC0000; padding: 24px; text-align: center;">
-            <div style="display: inline-block; background: #fff; padding: 8px 16px;">
-              <span style="font-size: 24px; font-weight: 900; color: #CC0000;">N</span>
-              <span style="font-size: 14px; font-weight: 900; color: #CC0000;">MEC</span>
-            </div>
-          </div>
-          <div style="padding: 32px 24px; background: #fff;">
-            <h2 style="color: #CC0000; margin-bottom: 16px;">会議・事業のお知らせ</h2>
-            <h3 style="font-size: 20px; color: #333; margin-bottom: 24px;">${title}</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-              ${eventDate ? `<tr><td style="padding: 8px 0; color: #666; width: 80px;">📅 日時</td><td style="padding: 8px 0; font-weight: 700;">${eventDate}</td></tr>` : ''}
-              ${location ? `<tr><td style="padding: 8px 0; color: #666;">📍 場所</td><td style="padding: 8px 0; font-weight: 700;">${location}</td></tr>` : ''}
-              ${committee ? `<tr><td style="padding: 8px 0; color: #666;">🏛️ 委員会</td><td style="padding: 8px 0; font-weight: 700;">${committee}</td></tr>` : ''}
-            </table>
-            <div style="margin-top: 32px; padding: 16px; background: #f5f5f5; border-radius: 4px;">
-              <p style="margin: 0; font-size: 14px; color: #666;">詳細・出欠回答はこちらから</p>
-              <a href="https://nmec-platform.vercel.app" style="display: inline-block; margin-top: 12px; background: #CC0000; color: #fff; padding: 12px 24px; text-decoration: none; font-weight: 700; border-radius: 2px;">N-MECプラットフォームを開く</a>
-            </div>
-          </div>
-          <div style="padding: 16px; background: #1a1a1a; text-align: center;">
-            <p style="color: #999; font-size: 12px; margin: 0;">新潟市異業種交流研究会協同組合</p>
-          </div>
-        </div>`;
-    } else if (type === 'notice') {
-      subject = '【N-MEC】' + title;
-      html = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #CC0000; padding: 24px; text-align: center;">
-            <div style="display: inline-block; background: #fff; padding: 8px 16px;">
-              <span style="font-size: 24px; font-weight: 900; color: #CC0000;">N</span>
-              <span style="font-size: 14px; font-weight: 900; color: #CC0000;">MEC</span>
-            </div>
-          </div>
-          <div style="padding: 32px 24px; background: #fff;">
-            <h2 style="color: #CC0000; margin-bottom: 16px;">お知らせ</h2>
-            <h3 style="font-size: 20px; color: #333; margin-bottom: 24px;">${title}</h3>
-            <div style="font-size: 15px; color: #333; line-height: 1.8; white-space: pre-line;">${body || ''}</div>
-            <div style="margin-top: 32px; padding: 16px; background: #f5f5f5; border-radius: 4px;">
-              <a href="https://nmec-platform.vercel.app" style="display: inline-block; background: #CC0000; color: #fff; padding: 12px 24px; text-decoration: none; font-weight: 700; border-radius: 2px;">N-MECプラットフォームを開く</a>
-            </div>
-          </div>
-          <div style="padding: 16px; background: #1a1a1a; text-align: center;">
-            <p style="color: #999; font-size: 12px; margin: 0;">新潟市異業種交流研究会協同組合</p>
-          </div>
-        </div>`;
-    }
-
-    // 一斉送信（Resendは一度に50件まで）
-    const chunkSize = 50;
-    for (let i = 0; i < emails.length; i += chunkSize) {
-      const chunk = emails.slice(i, i + chunkSize);
-      await resend.emails.send({
-        from: 'N-MEC事務局 <onboarding@resend.dev>',
-        to: chunk,
-        subject,
-        html
+      docs.forEach(function(d) {
+        docsHtml += '<div class="row"><div><div class="row-title" style="font-size:14px">📄 ' + d.name + '</div><div class="row-sub">' + fmtDateShort(d.created_at) + '</div></div><div style="display:flex;gap:6px"><a href="' + d.file_url + '" target="_blank"><button class="dl-btn">表示</button></a>' + (canUpload ? '<button onclick="deleteDocument(\'' + d.id + '\',\'' + id + '\')" style="padding:6px 12px;background:none;border:1px solid #ccc;border-radius:2px;font-size:12px;cursor:pointer;color:#999">削除</button>' : '') + '</div></div>';
       });
     }
+    if (canUpload) {
+      docsHtml += '<div style="margin-top:16px;border-top:1px solid var(--gray);padding-top:16px"><div style="font-size:13px;font-weight:700;color:var(--gray-dark);margin-bottom:10px">📤 ファイルをアップロード</div><input type="text" id="upload-name" placeholder="ファイル名（例：第148回例会 議事録）" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><select id="upload-category" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select><input type="file" id="upload-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px;margin-bottom:10px"><button class="submit-btn" onclick="uploadDocument(\'' + id + '\')">アップロードする</button></div>';
+    }
+    docsHtml += '</div>';
 
-    return res.status(200).json({ success: true, sent: emails.length });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: error.message });
+    el.innerHTML = '<button class="back-btn" onclick="navigate(\'events\')">← 一覧に戻る</button>' +
+      '<div class="card card-accent"><span class="badge badge-red">' + typeLabel(e.type) + '</span>' +
+      '<div class="detail-title">' + e.title + '</div>' +
+      '<div class="detail-row"><span class="detail-label">日時</span><span class="detail-value">' + fmtDate(e.date) + '</span></div>' +
+      '<div class="detail-row"><span class="detail-label">場所</span><span class="detail-value">' + (e.location||'未定') + '</span></div>' +
+      (e.committee ? '<div class="detail-row"><span class="detail-label">担当委員会</span><span class="detail-value">' + e.committee + '</span></div>' : '') +
+      (e.description ? '<div class="detail-row"><span class="detail-label">概要</span><span class="detail-value">' + e.description + '</span></div>' : '') +
+      (e.rsvp_deadline ? '<div class="detail-row"><span class="detail-label">出欠締切</span><span class="detail-value" style="color:var(--red);font-weight:700">' + fmtDateShort(e.rsvp_deadline) + '</span></div>' : '') +
+      '</div>' + rsvpHtml + rsvpListHtml + agendaHtml + docsHtml;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function copyRsvpUrl(url) {
+  navigator.clipboard.writeText(url).then(function() {
+    alert('URLをコピーしました！\nメールやLINEで共有してください😊');
+  }).catch(function() {
+    prompt('以下のURLをコピーしてください', url);
+  });
+}
+
+async function deleteDocument(docId, eventId) {
+  if (!confirm('この資料を削除しますか？')) return;
+  try {
+    await axios.delete(API + '/documents?id=eq.' + docId, { headers: hdrs() });
+    if (eventId) {
+      showEventDetail(eventId);
+    } else {
+      renderMotions();
+    }
+  } catch(e) { alert('削除に失敗しました'); }
+}
+
+async function uploadDocument(eventId) {
+  const name = document.getElementById('upload-name').value;
+  const file = document.getElementById('upload-file').files[0];
+  if (!name) { alert('ファイル名を入力してください'); return; }
+  if (!file) { alert('ファイルを選択してください'); return; }
+
+  const btn = document.querySelector('#main-content .submit-btn');
+  btn.textContent = 'アップロード中...'; btn.disabled = true;
+
+  try {
+    const ext = file.name.split('.').pop();
+    const filePath = 'events/' + eventId + '/' + Date.now() + '.' + ext;
+    const uploadRes = await axios.post(
+      SUPABASE_URL + '/storage/v1/object/documents/' + filePath,
+      file,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + accessToken, 'Content-Type': file.type } }
+    );
+    const fileUrl = SUPABASE_URL + '/storage/v1/object/public/documents/' + filePath;
+    await axios.post(API + '/documents', {
+      name, event_id: eventId, file_url: fileUrl,
+      file_size: (file.size / 1024).toFixed(0) + 'KB',
+      category: document.getElementById('upload-category').value,
+      year: new Date().getFullYear(),
+      uploaded_by: currentUser.id
+    }, { headers: hdrs() });
+    alert('アップロード完了！');
+    showEventDetail(eventId);
+  } catch(e) { alert('アップロードに失敗しました'); btn.textContent = 'アップロードする'; btn.disabled = false; }
+}
+
+async function submitRsvp(eventId, status, existingId) {
+  try {
+    if (existingId) {
+      await axios.patch(API + '/attendances?id=eq.' + existingId, { status, responded_at: new Date().toISOString() }, { headers: Object.assign({}, hdrs(), { 'Prefer': 'return=minimal' }) });
+    } else {
+      await axios.post(API + '/attendances', { event_id: eventId, user_id: currentUser.id, status }, { headers: hdrs() });
+    }
+    showEventDetail(eventId);
+  } catch(e) { alert('回答の送信に失敗しました'); }
+}
+
+function showEventForm() {
+  const el = document.getElementById('main-content');
+  axios.get(API + '/committees?order=sort_order.asc', { headers: hdrs() }).then(function(res) {
+    const committeeOptions = res.data.map(function(c) { return '<option value="' + c.name + '">' + c.name + '</option>'; }).join('');
+    el.innerHTML = '<button class="back-btn" onclick="navigate(\'events\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">📅 イベントを作成</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="ev-title" placeholder="第149回 定例例会"></div><div class="form-group-inline"><label>種別 *</label><select id="ev-type"><option value="sanyaku">三役会議</option><option value="rijikai">理事会</option><option value="reikai">例会</option><option value="iinkai">委員会</option><option value="jigyou">その他事業</option><option value="other">その他</option></select></div><div class="form-group-inline"><label>担当委員会</label><select id="ev-committee"><option value="">なし（全体）</option>' + committeeOptions + '</select></div><div class="form-group-inline"><label>日時 *</label><input type="datetime-local" id="ev-date"></div><div class="form-group-inline"><label>場所</label><input type="text" id="ev-location" placeholder="万代シルバーホテル 3F"></div><div class="form-group-inline"><label>概要</label><textarea id="ev-desc" placeholder="内容の説明"></textarea></div><div class="form-group-inline"><label>出欠締切日</label><input type="datetime-local" id="ev-deadline"></div><button class="submit-btn" onclick="submitNewEvent()">作成する</button></div>';
+  });
+}
+
+async function sendEmailNotification(type, data) {
+  try {
+    await axios.post('/api/send-email', { type, ...data });
+    console.log('メール送信完了');
+  } catch(e) {
+    console.error('メール送信エラー:', e);
   }
-};
+}
+
+async function submitNewEvent() {
+  const title = document.getElementById('ev-title').value;
+  const date = document.getElementById('ev-date').value;
+  if (!title || !date) { alert('タイトルと日時は必須です'); return; }
+  try {
+    const eventDate = new Date(date);
+    const dateStr = eventDate.getFullYear() + '年' + (eventDate.getMonth()+1) + '月' + eventDate.getDate() + '日 ' + eventDate.getHours() + ':' + String(eventDate.getMinutes()).padStart(2,'0');
+    const type = document.getElementById('ev-type').value;
+    const location = document.getElementById('ev-location').value;
+    const committee = document.getElementById('ev-committee').value;
+
+    // イベント作成
+    await axios.post(API + '/events', {
+      title, type,
+      date: eventDate.toISOString(),
+      location,
+      description: document.getElementById('ev-desc').value,
+      committee: committee || null,
+      rsvp_deadline: document.getElementById('ev-deadline').value ? new Date(document.getElementById('ev-deadline').value).toISOString() : null,
+      status: 'published',
+      created_by: currentUser.id
+    }, { headers: hdrs() });
+
+    // 自動お知らせ作成
+    const noticeBody = '【' + typeLabel(type) + '】' + title + ' の開催が登録されました。\n\n' +
+      '📅 日時：' + dateStr + '\n' +
+      (location ? '📍 場所：' + location + '\n' : '') +
+      (committee ? '🏛️ 担当委員会：' + committee + '\n' : '') +
+      '\n詳細は「会議・事業」メニューよりご確認ください。';
+
+    await axios.post(API + '/notices', {
+      title: '【' + typeLabel(type) + '】' + title + ' が登録されました',
+      body: noticeBody,
+      priority: 'normal',
+      created_by: currentUser.id
+    }, { headers: hdrs() });
+
+    const emailModeEl = document.querySelector('input[name="email-mode"]:checked');
+    const emailMode = emailModeEl ? emailModeEl.value : 'none';
+    if (emailMode !== 'none') {
+      await sendEmailNotification('event', { title, eventDate: dateStr, location, committee, emailMode });
+      alert('作成しました！メンバーにメールを送信しました😊');
+    } else {
+      alert('作成しました！');
+    }
+    navigate('events');
+  } catch(e) { alert('作成に失敗しました'); }
+}
+
+async function renderMotions() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const res = await axios.get(API + '/documents?order=created_at.desc', { headers: hdrs() });
+    const docs = res.data;
+    const catLabels = { kumiai:'組合資料', keikaku:'計画資料', rijikai:'理事会資料', sanyaku:'三役資料', reikai:'例会資料', other:'その他' };
+    const canUpload = ['admin','office','director'].includes(currentProfile.role);
+
+    let html = canUpload ? '<button class="submit-btn-outline" onclick="showDocumentUploadForm()">＋ 資料を追加</button>' : '';
+    html += '<div class="filter-btns"><button class="filter-btn active" onclick="filterMotionDocs(\'all\',this)">すべて</button><button class="filter-btn" onclick="filterMotionDocs(\'kumiai\',this)">組合資料</button><button class="filter-btn" onclick="filterMotionDocs(\'keikaku\',this)">計画資料</button><button class="filter-btn" onclick="filterMotionDocs(\'rijikai\',this)">理事会資料</button><button class="filter-btn" onclick="filterMotionDocs(\'sanyaku\',this)">三役資料</button><button class="filter-btn" onclick="filterMotionDocs(\'reikai\',this)">例会資料</button><button class="filter-btn" onclick="filterMotionDocs(\'other\',this)">その他</button></div>';
+    html += '<input class="search-input" placeholder="🔍 ファイル名で検索..." oninput="filterMotionDocsByName(this.value)">';
+    html += '<div id="motions-docs-list">';
+
+    if (docs.length === 0) {
+      html += '<div class="empty">資料がまだありません<br><small>「資料を追加」からアップロードできます</small></div>';
+    } else {
+      docs.forEach(function(d) {
+        const canDelete = ['admin','office','director'].includes(currentProfile.role);
+        html += '<div class="card" data-cat="' + d.category + '" data-name="' + (d.name||'') + '">' +
+          '<div class="doc-row">' +
+          '<div style="font-size:32px">' + (d.file_url && d.file_url.includes('.pdf') ? '📕' : '📄') + '</div>' +
+          '<div class="doc-info">' +
+          '<div class="doc-name">' + d.name + '</div>' +
+          '<div class="doc-meta" style="margin-top:6px">' +
+          '<span class="badge badge-red">' + (catLabels[d.category]||d.category) + '</span>' +
+          '<span style="margin-left:8px;font-size:12px;color:var(--text-mid)">' + fmtDateShort(d.created_at) + '</span>' +
+          (d.file_size ? '<span style="margin-left:8px;font-size:12px;color:var(--text-mid)">' + d.file_size + '</span>' : '') +
+          '</div>' +
+          '</div>' +
+          '<div style="display:flex;flex-direction:column;gap:6px">' +
+          '<a href="' + d.file_url + '" target="_blank"><button class="dl-btn">表示</button></a>' +
+          (canDelete ? '<button onclick="deleteDocument(\'' + d.id + '\',null)" style="padding:6px 12px;background:none;border:1px solid #ccc;border-radius:2px;font-size:12px;cursor:pointer;color:#999">削除</button>' : '') +
+          '</div>' +
+          '</div></div>';
+      });
+    }
+    html += '</div>';
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function showDocumentUploadForm() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<button class="back-btn" onclick="navigate(\'motions\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">📁 資料を追加</div><div class="form-group-inline"><label>ファイル名 *</label><input type="text" id="doc-name" placeholder="例：R8年度 事業計画書"></div><div class="form-group-inline"><label>種別 *</label><select id="doc-category"><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select></div><div class="form-group-inline"><label>ファイルを選択 *</label><input type="file" id="doc-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:15px"></div><button class="submit-btn" onclick="submitDocumentUpload()">アップロードする</button></div>';
+}
+
+async function submitDocumentUpload() {
+  const name = document.getElementById('doc-name').value;
+  const file = document.getElementById('doc-file').files[0];
+  const category = document.getElementById('doc-category').value;
+  if (!name) { alert('ファイル名を入力してください'); return; }
+  if (!file) { alert('ファイルを選択してください'); return; }
+  const btn = document.querySelector('#main-content .submit-btn');
+  btn.textContent = 'アップロード中...'; btn.disabled = true;
+  try {
+    const ext = file.name.split('.').pop();
+    const filePath = 'documents/' + Date.now() + '.' + ext;
+    await axios.post(SUPABASE_URL + '/storage/v1/object/documents/' + filePath, file, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + accessToken, 'Content-Type': file.type } });
+    const fileUrl = SUPABASE_URL + '/storage/v1/object/public/documents/' + filePath;
+    await axios.post(API + '/documents', {
+      name, category, file_url: fileUrl,
+      file_size: (file.size / 1024).toFixed(0) + 'KB',
+      year: new Date().getFullYear(),
+      uploaded_by: currentUser.id
+    }, { headers: hdrs() });
+    alert('アップロードしました！');
+    navigate('motions');
+  } catch(e) { alert('アップロードに失敗しました'); btn.textContent = 'アップロードする'; btn.disabled = false; }
+}
+
+function filterMotionDocs(cat, btn) {
+  document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  document.querySelectorAll('#motions-docs-list .card').forEach(function(card) {
+    card.style.display = (cat === 'all' || card.dataset.cat === cat) ? 'block' : 'none';
+  });
+}
+
+function filterMotionDocsByName(q) {
+  const lq = q.toLowerCase();
+  document.querySelectorAll('#motions-docs-list .card').forEach(function(card) {
+    card.style.display = (card.dataset.name||'').toLowerCase().includes(lq) ? 'block' : 'none';
+  });
+}
+
+async function renderMembers() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const uRes = await axios.get(API + '/users?is_active=eq.true&email=neq.info@nmec.jp&order=sort_order.asc,name.asc', { headers: hdrs() });
+    const mRes = await axios.get(API + '/committee_members', { headers: hdrs() });
+    const users = uRes.data, allMembers = mRes.data;
+    let html = '<input class="search-input" placeholder="🔍 名前・会社名で検索..." oninput="filterMembers(this.value)"><div id="members-list">';
+    if (users.length === 0) html += '<div class="empty">データがありません</div>';
+    users.forEach(function(m) {
+      const cm = allMembers.find(function(x) { return x.user_id === m.id; });
+      const cmRole = cm ? { chair:'委員長', vice_chair:'副委員長', vice_director:'担当副理事長', member:'メンバー' }[cm.role] : null;
+      html += memberCard(m, cmRole);
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function memberCard(m, cmRole) {
+  const initial = (m.name || '?').replace(/\s/g,'').charAt(0);
+  const roleBadge = cmRole ? '<span class="badge badge-red">' + cmRole + '</span>' : (m.committee ? '<span class="badge badge-gray">' + m.committee + '</span>' : '');
+  return '<div class="card" onclick="showMemberDetail(\'' + m.id + '\')" style="cursor:pointer" data-name="' + (m.name||'') + '" data-company="' + (m.company||'') + '"><div class="member-row"><div class="avatar">' + initial + '</div><div class="member-info"><div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px"><div class="member-name">' + (m.name||'—') + '</div>' + roleBadge + '</div><div class="member-sub" style="margin-top:6px">' + (m.company||'') + '</div><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">' + (m.position ? '<span class="badge badge-gray">' + m.position + '</span>' : '') + (m.committee ? '<span style="font-size:12px;color:var(--text-mid)">' + m.committee + '</span>' : '') + '</div></div></div></div>';
+}
+
+function filterMembers(q) {
+  const lq = q.toLowerCase();
+  document.querySelectorAll('#members-list .card').forEach(function(card) {
+    card.style.display = ((card.dataset.name||'').toLowerCase().includes(lq) || (card.dataset.company||'').toLowerCase().includes(lq)) ? 'block' : 'none';
+  });
+}
+
+async function showMemberDetail(id) {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const res = await axios.get(API + '/users?id=eq.' + id, { headers: hdrs() });
+    const m = res.data[0];
+    const initial = (m.name || '?').replace(/\s/g,'').charAt(0);
+    const canSeeContact = ['admin','office','director'].includes(currentProfile.role) || currentUser.id === id;
+    el.innerHTML = '<button class="back-btn" onclick="navigate(\'members\')">← 一覧に戻る</button><div class="card card-accent"><div style="display:flex;gap:20px;align-items:center;margin-bottom:20px"><div class="avatar avatar-lg">' + initial + '</div><div><div style="font-size:22px;font-weight:800;color:var(--gray-dark)">' + (m.name||'—') + '</div><div style="font-size:15px;color:var(--text-mid);margin-top:6px">' + (m.company||'') + '</div><div style="margin-top:8px"><span class="badge badge-red">' + roleLabel(m.role) + '</span></div></div></div>' + drow('役職', m.position||'—') + drow('所属委員会', m.committee||'—') + (canSeeContact ? drow('メール', m.email||'—') : drow('メール', '閲覧権限なし')) + (canSeeContact ? drow('電話', m.phone||'—') : '') + (m.bio ? drow('自己紹介', m.bio) : '') + drow('入会年度', m.joined_year ? m.joined_year+'年' : '—') + '</div>';
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function drow(label, value) {
+  return '<div class="detail-row"><span class="detail-label">' + label + '</span><span class="detail-value">' + value + '</span></div>';
+}
+
+async function renderNotices() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const res = await axios.get(API + '/notices?order=created_at.desc', { headers: hdrs() });
+    const canCreate = ['admin','office'].includes(currentProfile.role);
+    let html = canCreate ? '<button class="submit-btn-outline" onclick="showNoticeForm()">＋ お知らせを投稿</button>' : '';
+    if (res.data.length === 0) html += '<div class="empty">お知らせがまだありません</div>';
+    res.data.forEach(function(n) {
+      const canEdit = ['admin','office'].includes(currentProfile.role);
+      html += '<div class="card ' + (n.priority==='important'?'card-accent':'') + '"><div style="display:flex;justify-content:space-between;margin-bottom:8px;align-items:center"><div style="display:flex;gap:8px">' + (n.priority==='important' ? '<span class="badge badge-red">重要</span>' : '<span class="badge badge-gray">お知らせ</span>') + '</div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:var(--text-mid)">' + fmtDateShort(n.created_at) + '</span>' + (canEdit ? '<button onclick="showNoticeEditForm(\'' + n.id + '\')" style="background:none;border:1px solid var(--gray-mid);border-radius:2px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--text-mid)">編集</button><button onclick="deleteNotice(\'' + n.id + '\')" style="background:none;border:1px solid #ccc;border-radius:2px;padding:3px 8px;font-size:11px;cursor:pointer;color:#999">削除</button>' : '') + '</div></div><div style="font-weight:' + (n.priority==='important'?800:700) + ';font-size:16px;color:var(--text);cursor:pointer" onclick="showNoticeDetail(\'' + n.id + '\')">' + n.title + '</div></div>';
+    });
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+async function deleteNotice(id) {
+  if (!confirm('このお知らせを削除しますか？')) return;
+  try {
+    await axios.delete(API + '/notices?id=eq.' + id, { headers: hdrs() });
+    navigate('notices');
+  } catch(e) { alert('削除に失敗しました'); }
+}
+
+async function showNoticeEditForm(id) {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const res = await axios.get(API + '/notices?id=eq.' + id, { headers: hdrs() });
+    const n = res.data[0];
+    el.innerHTML = '<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">🔔 お知らせを編集</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="no-title" value="' + n.title + '"></div><div class="form-group-inline"><label>本文</label><textarea id="no-body" style="min-height:140px">' + (n.body||'') + '</textarea></div><div class="form-group-inline"><label>優先度</label><select id="no-priority"><option value="normal"' + (n.priority==='normal'?' selected':'') + '>通常</option><option value="important"' + (n.priority==='important'?' selected':'') + '>重要</option></select></div>' + (n.file_url ? '<div style="padding:10px 0;border-top:1px solid var(--gray);margin-bottom:12px"><div style="font-size:13px;font-weight:700;color:var(--gray-dark);margin-bottom:6px">現在の添付ファイル</div><a href="' + n.file_url + '" target="_blank" style="color:var(--red);font-size:14px;font-weight:700;text-decoration:none">📎 ' + decodeURIComponent(n.file_url.split('/').pop()) + '</a></div>' : '') + '<div class="form-group-inline"><label>新しい添付ファイル（任意）</label><input type="text" id="no-file-name" placeholder="ファイルの表示名（例：R8年度総会資料）" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><select id="no-file-category" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><option value="">カテゴリを選択...</option><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select><input type="file" id="no-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div><button class="submit-btn" onclick="updateNotice(\'' + id + '\')">更新する</button></div>';
+  } catch(e) { alert('読み込みに失敗しました'); }
+}
+
+async function updateNotice(id) {
+  const title = document.getElementById('no-title').value;
+  if (!title) { alert('タイトルは必須です'); return; }
+  const btn = document.querySelector('#main-content .submit-btn');
+  btn.textContent = '更新中...'; btn.disabled = true;
+  try {
+    let fileUrl = null;
+    const file = document.getElementById('no-file') ? document.getElementById('no-file').files[0] : null;
+    const fileCat = document.getElementById('no-file-category') ? document.getElementById('no-file-category').value : '';
+    const fileDisplayName = document.getElementById('no-file-name') ? document.getElementById('no-file-name').value : '';
+    if (file) {
+      const ext = file.name.split('.').pop();
+      const filePath = 'notices/' + Date.now() + '.' + ext;
+      await axios.post(SUPABASE_URL + '/storage/v1/object/documents/' + filePath, file, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + accessToken, 'Content-Type': file.type } });
+      fileUrl = SUPABASE_URL + '/storage/v1/object/public/documents/' + filePath;
+      if (fileCat) {
+        await axios.post(API + '/documents', {
+          name: fileDisplayName || title + '（添付）',
+          file_url: fileUrl,
+          file_size: (file.size / 1024).toFixed(0) + 'KB',
+          category: fileCat,
+          year: new Date().getFullYear(),
+          uploaded_by: currentUser.id
+        }, { headers: hdrs() });
+      }
+    }
+    const updateData = { title, body: document.getElementById('no-body').value, priority: document.getElementById('no-priority').value };
+    if (fileUrl) updateData.file_url = fileUrl;
+    await axios.patch(API + '/notices?id=eq.' + id, updateData, { headers: Object.assign({}, hdrs(), { 'Prefer': 'return=minimal' }) });
+    alert('更新しました！'); navigate('notices');
+  } catch(e) { alert('更新に失敗しました'); btn.textContent = '更新する'; btn.disabled = false; }
+}
+
+async function showNoticeDetail(id) {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const res = await axios.get(API + '/notices?id=eq.' + id, { headers: hdrs() });
+    const n = res.data[0];
+    el.innerHTML = '<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">' + (n.priority==='important' ? '<span class="badge badge-red">重要</span>' : '<span class="badge badge-gray">お知らせ</span>') + '<span style="font-size:13px;color:var(--text-mid)">' + fmtDateShort(n.created_at) + '</span></div><div style="font-size:20px;font-weight:800;color:var(--gray-dark);margin-bottom:20px;line-height:1.4">' + n.title + '</div><div style="font-size:15px;color:var(--text);line-height:1.9;white-space:pre-line">' + (n.body||'').replace('「会議・事業」メニューよりご確認ください。', '<span onclick="navigate(\'events\')" style="color:var(--red);font-weight:700;text-decoration:underline;cursor:pointer">「会議・事業」メニューよりご確認ください。</span>') + '</div>' + (n.file_url ? '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray)"><a href="' + n.file_url + '" target="_blank" style="display:flex;align-items:center;gap:8px;color:var(--red);font-weight:700;font-size:14px;text-decoration:none">📎 ' + decodeURIComponent(n.file_url.split('/').pop()) + '</a></div>' : '') + '</div>';
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function showNoticeForm() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">🔔 お知らせを投稿</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="no-title" placeholder="タイトルを入力"></div><div class="form-group-inline"><label>本文</label><textarea id="no-body" placeholder="内容を入力" style="min-height:140px"></textarea></div><div class="form-group-inline"><label>優先度</label><select id="no-priority"><option value="normal">通常</option><option value="important">重要</option></select></div><div class="form-group-inline"><label>添付ファイル（任意）</label><input type="text" id="no-file-name" placeholder="ファイルの表示名（例：R8年度総会資料）" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><select id="no-file-category" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><option value="">カテゴリを選択...</option><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select><input type="file" id="no-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div><div style="background:#f8fafc;border-radius:6px;padding:16px;margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:var(--gray-dark);margin-bottom:10px">📧 メール通知</div><div style="display:flex;flex-direction:column;gap:10px"><label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="radio" name="notice-email-mode" value="none" checked> 送らない</label><label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="radio" name="notice-email-mode" value="directors"> 理事長・副理事長のみ</label><label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="radio" name="notice-email-mode" value="all"> 全理事及び監事</label></div></div><button class="submit-btn" onclick="submitNewNotice()">投稿する</button></div>';
+}
+
+async function submitNewNotice() {
+  const title = document.getElementById('no-title').value;
+  if (!title) { alert('タイトルは必須です'); return; }
+  const btn = document.querySelector('#main-content .submit-btn');
+  btn.textContent = '投稿中...'; btn.disabled = true;
+  try {
+    let fileUrl = null;
+    const file = document.getElementById('no-file').files[0];
+    const fileCat = document.getElementById('no-file-category').value;
+    const fileDisplayName = document.getElementById('no-file-name').value;
+    if (file) {
+      const ext = file.name.split('.').pop();
+      const filePath = 'notices/' + Date.now() + '.' + ext;
+      await axios.post(SUPABASE_URL + '/storage/v1/object/documents/' + filePath, file, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + accessToken, 'Content-Type': file.type } });
+      fileUrl = SUPABASE_URL + '/storage/v1/object/public/documents/' + filePath;
+      // 資料ライブラリにも保存
+      if (fileCat) {
+        await axios.post(API + '/documents', {
+          name: fileDisplayName || title + '（添付）',
+          file_url: fileUrl,
+          file_size: (file.size / 1024).toFixed(0) + 'KB',
+          category: fileCat,
+          year: new Date().getFullYear(),
+          uploaded_by: currentUser.id
+        }, { headers: hdrs() });
+      }
+    }
+    await axios.post(API + '/notices', { title, body: document.getElementById('no-body').value, priority: document.getElementById('no-priority').value, file_url: fileUrl, created_by: currentUser.id }, { headers: hdrs() });
+
+    const noticeEmailModeEl = document.querySelector('input[name="notice-email-mode"]:checked');
+    const noticeEmailMode = noticeEmailModeEl ? noticeEmailModeEl.value : 'none';
+    if (noticeEmailMode !== 'none') {
+      await sendEmailNotification('notice', { title, body: document.getElementById('no-body').value, emailMode: noticeEmailMode });
+      alert('投稿しました！メンバーにメールを送信しました😊');
+    } else {
+      alert('投稿しました！');
+    }
+    navigate('notices');
+  } catch(e) { alert('投稿に失敗しました'); btn.textContent = '投稿する'; btn.disabled = false; }
+}
+
+async function renderDocuments() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const res = await axios.get(API + '/documents?order=created_at.desc', { headers: hdrs() });
+    const catLabels = { kiyaku:'規約・定款', gian:'議案資料', reikai:'例会資料', iinkai:'委員会資料', jigyou:'事業計画', gijiroku:'議事録', other:'その他' };
+    let html = '<div class="filter-btns"><button class="filter-btn active" onclick="filterDocs(\'all\',this)">すべて</button><button class="filter-btn" onclick="filterDocs(\'reikai\',this)">例会資料</button><button class="filter-btn" onclick="filterDocs(\'gijiroku\',this)">議事録</button><button class="filter-btn" onclick="filterDocs(\'kiyaku\',this)">規約</button></div><div id="docs-list">';
+    if (res.data.length === 0) html += '<div class="empty">資料がまだありません</div>';
+    res.data.forEach(function(d) {
+      html += '<div class="card" data-cat="' + d.category + '"><div class="doc-row"><div style="font-size:32px">📄</div><div class="doc-info"><div class="doc-name">' + d.name + '</div><div class="doc-meta" style="margin-top:6px"><span class="badge badge-red">' + (catLabels[d.category]||d.category) + '</span><span style="margin-left:10px;font-size:13px">' + (d.year||'') + '年 | ' + (d.file_size||'') + '</span></div></div><a href="' + d.file_url + '" target="_blank"><button class="dl-btn">表示</button></a></div></div>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function filterDocs(cat, btn) {
+  document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  document.querySelectorAll('#docs-list .card').forEach(function(card) {
+    card.style.display = (cat === 'all' || card.dataset.cat === cat) ? 'block' : 'none';
+  });
+}
+
+async function renderCommittees() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const cRes = await axios.get(API + '/committees?order=sort_order.asc', { headers: hdrs() });
+    const uRes = await axios.get(API + '/users?is_active=eq.true&order=name.asc', { headers: hdrs() });
+    const mRes = await axios.get(API + '/committee_members', { headers: hdrs() });
+    const committees = cRes.data, users = uRes.data, allMembers = mRes.data;
+    const canEdit = ['admin','office','director'].includes(currentProfile.role);
+    const usersJson = encodeURIComponent(JSON.stringify(users));
+    let html = canEdit ? '<button class="submit-btn-outline" onclick="showCommitteeForm(decodeURIComponent(\'' + usersJson + '\'))">＋ 委員会を追加</button>' : '';
+    if (committees.length === 0) html += '<div class="empty">委員会がまだありません</div>';
+    committees.forEach(function(c) {
+      const viceDirector = users.find(function(u) { return u.id === c.chair_id; });
+      const members = allMembers.filter(function(m) { return m.committee_id === c.id; });
+      const chair = members.find(function(m) { return m.role === 'chair'; });
+      const viceChairs = members.filter(function(m) { return m.role === 'vice_chair'; });
+      const chairUser = chair ? users.find(function(u) { return u.id === chair.user_id; }) : null;
+      const viceChairUsers = viceChairs.map(function(v) { return users.find(function(u) { return u.id === v.user_id; }); }).filter(Boolean);
+      function roleRow(label, color, person) {
+        if (!person) return '';
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray)"><span style="font-size:11px;font-weight:800;color:' + color + ';width:90px;flex-shrink:0">' + label + '</span><div><div style="font-size:15px;font-weight:700;color:var(--text)">' + person.name + '</div><div style="font-size:12px;color:var(--text-mid)">' + person.company + '</div></div></div>';
+      }
+      html += '<div class="card card-accent"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px"><div style="font-size:18px;font-weight:800;color:var(--gray-dark)">' + c.name + '</div>' + (canEdit ? '<div style="display:flex;gap:6px"><button onclick="showMemberForm(\'' + c.id + '\',decodeURIComponent(\'' + usersJson + '\'))" style="background:var(--red);color:#fff;border:none;border-radius:2px;padding:5px 10px;font-size:12px;cursor:pointer">メンバー</button><button onclick="showCommitteeEdit(\'' + c.id + '\',decodeURIComponent(\'' + usersJson + '\'))" style="background:none;border:1px solid var(--gray-mid);border-radius:2px;padding:5px 10px;font-size:12px;cursor:pointer;color:var(--text-mid)">編集</button></div>' : '') + '</div>' + roleRow('担当副理事長', '#1a7a4a', viceDirector) + roleRow('委員長', 'var(--red)', chairUser) + viceChairUsers.map(function(u) { return roleRow('副委員長', '#1a2e4a', u); }).join('') + '</div>';
+    });
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function showCommitteeForm(usersJson) {
+  const users = JSON.parse(usersJson);
+  const el = document.getElementById('main-content');
+  const opts = users.map(function(u) { return '<option value="' + u.id + '">' + u.name + '（' + u.company + '）</option>'; }).join('');
+  el.innerHTML = '<button class="back-btn" onclick="navigate(\'committees\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">🏛️ 委員会を追加</div><div class="form-group-inline"><label>委員会名 *</label><input type="text" id="cm-name" placeholder="例：広報委員会"></div><div class="form-group-inline"><label>説明</label><input type="text" id="cm-desc" placeholder="委員会の活動内容"></div><div class="form-group-inline"><label>担当副理事長</label><select id="cm-chair"><option value="">未設定</option>' + opts + '</select></div><div class="form-group-inline"><label>表示順</label><input type="number" id="cm-order" value="0"></div><button class="submit-btn" onclick="submitCommittee()">追加する</button></div>';
+}
+
+async function submitCommittee() {
+  const name = document.getElementById('cm-name').value;
+  if (!name) { alert('委員会名は必須です'); return; }
+  try {
+    await axios.post(API + '/committees', { name, description: document.getElementById('cm-desc').value, chair_id: document.getElementById('cm-chair').value || null, sort_order: parseInt(document.getElementById('cm-order').value)||0 }, { headers: hdrs() });
+    alert('追加しました！'); navigate('committees');
+  } catch(e) { alert('追加に失敗しました'); }
+}
+
+async function showCommitteeEdit(id, usersJson) {
+  const users = JSON.parse(usersJson);
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const res = await axios.get(API + '/committees?id=eq.' + id, { headers: hdrs() });
+    const c = res.data[0];
+    const opts = users.map(function(u) { return '<option value="' + u.id + '"' + (u.id===c.chair_id?' selected':'') + '>' + u.name + '（' + u.company + '）</option>'; }).join('');
+    el.innerHTML = '<button class="back-btn" onclick="navigate(\'committees\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">🏛️ 委員会を編集</div><div class="form-group-inline"><label>委員会名 *</label><input type="text" id="cm-name" value="' + c.name + '"></div><div class="form-group-inline"><label>説明</label><input type="text" id="cm-desc" value="' + (c.description||'') + '"></div><div class="form-group-inline"><label>担当副理事長</label><select id="cm-chair"><option value="">未設定</option>' + opts + '</select></div><div class="form-group-inline"><label>表示順</label><input type="number" id="cm-order" value="' + (c.sort_order||0) + '"></div><button class="submit-btn" onclick="updateCommittee(\'' + id + '\')">更新する</button><button onclick="deleteCommittee(\'' + id + '\')" style="width:100%;margin-top:10px;padding:12px;background:none;border:2px solid #ccc;border-radius:2px;font-size:14px;color:#999;cursor:pointer">この委員会を削除</button></div>';
+  } catch(e) { alert('読み込みに失敗しました'); }
+}
+
+async function updateCommittee(id) {
+  const name = document.getElementById('cm-name').value;
+  if (!name) { alert('委員会名は必須です'); return; }
+  try {
+    await axios.patch(API + '/committees?id=eq.' + id, { name, description: document.getElementById('cm-desc').value, chair_id: document.getElementById('cm-chair').value || null, sort_order: parseInt(document.getElementById('cm-order').value)||0 }, { headers: Object.assign({}, hdrs(), { 'Prefer': 'return=minimal' }) });
+    alert('更新しました！'); navigate('committees');
+  } catch(e) { alert('更新に失敗しました'); }
+}
+
+async function deleteCommittee(id) {
+  if (!confirm('この委員会を削除しますか？')) return;
+  try {
+    await axios.delete(API + '/committees?id=eq.' + id, { headers: hdrs() });
+    alert('削除しました'); navigate('committees');
+  } catch(e) { alert('削除に失敗しました'); }
+}
+
+async function showMemberForm(committeeId, usersJson) {
+  const users = JSON.parse(usersJson);
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const cRes = await axios.get(API + '/committees?id=eq.' + committeeId, { headers: hdrs() });
+    const mRes = await axios.get(API + '/committee_members?committee_id=eq.' + committeeId, { headers: hdrs() });
+    const committee = cRes.data[0], members = mRes.data;
+    const memberIds = members.map(function(m) { return m.user_id; });
+    const nonMembers = users.filter(function(u) { return !memberIds.includes(u.id); });
+    const usersJsonEnc = encodeURIComponent(usersJson);
+    let memberHtml = members.length === 0 ? '<div style="color:#aaa;font-size:14px;padding:10px 0">メンバーがいません</div>' :
+      members.map(function(m) {
+        const u = users.find(function(x) { return x.id === m.user_id; });
+        const rl = { chair:'委員長', vice_chair:'副委員長', vice_director:'担当副理事長', member:'メンバー' }[m.role] || m.role;
+        return u ? '<div class="row"><div><div class="row-title">' + u.name + ' <span class="badge badge-gray">' + rl + '</span></div><div class="row-sub">' + u.company + '</div></div><button onclick="removeMember(\'' + m.id + '\',\'' + committeeId + '\',decodeURIComponent(\'' + usersJsonEnc + '\'))" style="background:none;border:1px solid #ccc;border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer;color:#999">削除</button></div>' : '';
+      }).join('');
+    const addOpts = nonMembers.map(function(u) { return '<option value="' + u.id + '">' + u.name + '（' + u.company + '）</option>'; }).join('');
+    el.innerHTML = '<button class="back-btn" onclick="navigate(\'committees\')">← 一覧に戻る</button><div class="card card-accent"><div style="font-size:18px;font-weight:800;margin-bottom:16px">' + committee.name + ' メンバー管理</div><div class="section-title">現在のメンバー</div>' + memberHtml + '</div><div class="card"><div class="section-title">メンバーを追加</div><div class="form-group-inline"><label>役割</label><select id="add-member-role"><option value="chair">委員長</option><option value="vice_chair">副委員長</option><option value="vice_director">担当副理事長</option><option value="member">メンバー</option></select></div><div class="form-group-inline"><label>会員を選択</label><select id="add-member-select"><option value="">選択してください...</option>' + addOpts + '</select></div><button class="submit-btn" onclick="addMember(\'' + committeeId + '\',decodeURIComponent(\'' + usersJsonEnc + '\'))">追加する</button></div>';
+  } catch(e) { alert('読み込みに失敗しました'); }
+}
+
+async function addMember(committeeId, usersJson) {
+  const userId = document.getElementById('add-member-select').value;
+  const role = document.getElementById('add-member-role').value;
+  if (!userId) { alert('会員を選択してください'); return; }
+  try {
+    await axios.post(API + '/committee_members', { committee_id: committeeId, user_id: userId, role }, { headers: hdrs() });
+    showMemberForm(committeeId, usersJson);
+  } catch(e) { alert('追加に失敗しました'); }
+}
+
+async function removeMember(memberId, committeeId, usersJson) {
+  if (!confirm('このメンバーを削除しますか？')) return;
+  try {
+    await axios.delete(API + '/committee_members?id=eq.' + memberId, { headers: hdrs() });
+    showMemberForm(committeeId, usersJson);
+  } catch(e) { alert('削除に失敗しました'); }
+}
+</script>
+</body>
+</html>
