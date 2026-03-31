@@ -301,6 +301,7 @@
       <div class="nav-item" id="nav-events" onclick="navigate('events')"><span class="nav-icon">📅</span>例会・委員会</div>
       <div class="nav-item" id="nav-motions" onclick="navigate('motions')"><span class="nav-icon">📋</span>議案・議事録</div>
       <div class="nav-item" id="nav-members" onclick="navigate('members')"><span class="nav-icon">👥</span>会員一覧</div>
+      <div class="nav-item" id="nav-committees" onclick="navigate('committees')"><span class="nav-icon">🏛️</span>委員会管理</div>
       <div class="nav-item" id="nav-documents" onclick="navigate('documents')"><span class="nav-icon">📁</span>資料ライブラリ</div>
       <div class="nav-item" id="nav-notices" onclick="navigate('notices')"><span class="nav-icon">🔔</span>お知らせ</div>
     </div>
@@ -405,14 +406,14 @@ function roleLabel(r) { return { admin:'管理者', office:'事務局', director
 function navigate(page) {
   currentPage = page;
   closeSidebar();
-  const titles = { dashboard:'ダッシュボード', events:'例会・委員会', motions:'議案・議事録', members:'会員一覧', documents:'資料ライブラリ', notices:'お知らせ' };
+  const titles = { dashboard:'ダッシュボード', events:'例会・委員会', motions:'議案・議事録', members:'会員一覧', documents:'資料ライブラリ', notices:'お知らせ', committees:'委員会管理' };
   document.getElementById('header-title').textContent = titles[page] || '';
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.bottom-nav button').forEach(el => el.classList.remove('active'));
   const ni = document.getElementById('nav-' + page), bi = document.getElementById('bn-' + page);
   if (ni) ni.classList.add('active');
   if (bi) bi.classList.add('active');
-  const pages = { dashboard: renderDashboard, events: renderEvents, motions: renderMotions, members: renderMembers, documents: renderDocuments, notices: renderNotices };
+  const pages = { dashboard: renderDashboard, events: renderEvents, motions: renderMotions, members: renderMembers, documents: renderDocuments, notices: renderNotices, committees: renderCommittees };
   if (pages[page]) pages[page]();
 }
 
@@ -818,6 +819,182 @@ function filterDocs(cat, btn) {
   document.querySelectorAll('#docs-list .card').forEach(card => {
     card.style.display = (cat === 'all' || card.dataset.cat === cat) ? 'block' : 'none';
   });
+}
+
+// ==================== COMMITTEES ====================
+async function renderCommittees() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const [cRes, uRes] = await Promise.all([
+      axios.get(`${API}/committees?order=sort_order.asc`, { headers: headers() }),
+      axios.get(`${API}/users?is_active=eq.true&order=name.asc`, { headers: headers() })
+    ]);
+    const committees = cRes.data;
+    const users = uRes.data;
+    const canEdit = ['admin','office'].includes(currentProfile.role);
+
+    let html = canEdit ? `<button class="submit-btn-outline" onclick="showCommitteeForm(${JSON.stringify(users).replace(/"/g,'&quot;')})">＋ 委員会を追加</button>` : '';
+
+    if (committees.length === 0) { html += '<div class="empty">委員会がまだありません</div>'; }
+
+    committees.forEach(c => {
+      const chair = users.find(u => u.id === c.chair_id);
+      html += `<div class="card card-accent">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+          <div>
+            <div style="font-size:18px;font-weight:800;color:var(--gray-dark)">${c.name}</div>
+            ${c.description ? `<div style="font-size:13px;color:var(--text-mid);margin-top:4px">${c.description}</div>` : ''}
+          </div>
+          ${canEdit ? `<button onclick="showCommitteeEdit('${c.id}',${JSON.stringify(users).replace(/"/g,'&quot;')})" style="background:none;border:1px solid var(--gray-mid);border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text-mid)">編集</button>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--gray)">
+          <span style="font-size:12px;font-weight:700;color:var(--text-mid);width:60px">委員長</span>
+          ${chair ? `<span class="badge badge-red">${chair.name}</span>` : `<span style="font-size:13px;color:#aaa">未設定</span>`}
+          ${canEdit ? `<button onclick="showMemberForm('${c.id}',${JSON.stringify(users).replace(/"/g,'&quot;')})" style="margin-left:auto;background:var(--red);color:#fff;border:none;border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer">メンバー管理</button>` : ''}
+        </div>
+      </div>`;
+    });
+
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function showCommitteeForm(users) {
+  const el = document.getElementById('main-content');
+  const userOptions = users.map(u => `<option value="${u.id}">${u.name}（${u.company}）</option>`).join('');
+  el.innerHTML = `
+    <button class="back-btn" onclick="navigate('committees')">← 一覧に戻る</button>
+    <div class="card card-accent">
+      <div class="section-title">🏛️ 委員会を追加</div>
+      <div class="form-group-inline"><label>委員会名 *</label><input type="text" id="cm-name" placeholder="例：広報委員会"></div>
+      <div class="form-group-inline"><label>説明</label><input type="text" id="cm-desc" placeholder="委員会の活動内容"></div>
+      <div class="form-group-inline"><label>委員長（担当理事）</label>
+        <select id="cm-chair"><option value="">未設定</option>${userOptions}</select>
+      </div>
+      <div class="form-group-inline"><label>表示順</label><input type="number" id="cm-order" placeholder="1" value="0"></div>
+      <button class="submit-btn" onclick="submitCommittee()">追加する</button>
+    </div>`;
+}
+
+async function submitCommittee() {
+  const name = document.getElementById('cm-name').value;
+  if (!name) { alert('委員会名は必須です'); return; }
+  try {
+    await axios.post(`${API}/committees`, {
+      name,
+      description: document.getElementById('cm-desc').value,
+      chair_id: document.getElementById('cm-chair').value || null,
+      sort_order: parseInt(document.getElementById('cm-order').value) || 0
+    }, { headers: headers() });
+    alert('追加しました！');
+    navigate('committees');
+  } catch(e) { alert('追加に失敗しました'); }
+}
+
+async function showCommitteeEdit(id, users) {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const res = await axios.get(`${API}/committees?id=eq.${id}`, { headers: headers() });
+    const c = res.data[0];
+    const userOptions = users.map(u => `<option value="${u.id}" ${u.id===c.chair_id?'selected':''}>${u.name}（${u.company}）</option>`).join('');
+    el.innerHTML = `
+      <button class="back-btn" onclick="navigate('committees')">← 一覧に戻る</button>
+      <div class="card card-accent">
+        <div class="section-title">🏛️ 委員会を編集</div>
+        <div class="form-group-inline"><label>委員会名 *</label><input type="text" id="cm-name" value="${c.name}"></div>
+        <div class="form-group-inline"><label>説明</label><input type="text" id="cm-desc" value="${c.description||''}"></div>
+        <div class="form-group-inline"><label>委員長（担当理事）</label>
+          <select id="cm-chair"><option value="">未設定</option>${userOptions}</select>
+        </div>
+        <div class="form-group-inline"><label>表示順</label><input type="number" id="cm-order" value="${c.sort_order||0}"></div>
+        <button class="submit-btn" onclick="updateCommittee('${id}')">更新する</button>
+        <button onclick="deleteCommittee('${id}')" style="width:100%;margin-top:10px;padding:12px;background:none;border:2px solid #ccc;border-radius:2px;font-size:14px;color:#999;cursor:pointer">この委員会を削除</button>
+      </div>`;
+  } catch(e) { alert('読み込みに失敗しました'); }
+}
+
+async function updateCommittee(id) {
+  const name = document.getElementById('cm-name').value;
+  if (!name) { alert('委員会名は必須です'); return; }
+  try {
+    await axios.patch(`${API}/committees?id=eq.${id}`, {
+      name,
+      description: document.getElementById('cm-desc').value,
+      chair_id: document.getElementById('cm-chair').value || null,
+      sort_order: parseInt(document.getElementById('cm-order').value) || 0
+    }, { headers: { ...headers(), 'Prefer': 'return=minimal' } });
+    alert('更新しました！');
+    navigate('committees');
+  } catch(e) { alert('更新に失敗しました'); }
+}
+
+async function deleteCommittee(id) {
+  if (!confirm('この委員会を削除しますか？')) return;
+  try {
+    await axios.delete(`${API}/committees?id=eq.${id}`, { headers: headers() });
+    alert('削除しました');
+    navigate('committees');
+  } catch(e) { alert('削除に失敗しました'); }
+}
+
+async function showMemberForm(committeeId, users) {
+  const el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"></div>';
+  try {
+    const [cRes, mRes] = await Promise.all([
+      axios.get(`${API}/committees?id=eq.${committeeId}`, { headers: headers() }),
+      axios.get(`${API}/committee_members?committee_id=eq.${committeeId}`, { headers: headers() })
+    ]);
+    const committee = cRes.data[0];
+    const members = mRes.data;
+    const memberIds = members.map(m => m.user_id);
+    const nonMembers = users.filter(u => !memberIds.includes(u.id));
+
+    let memberHtml = members.length === 0 ? '<div style="color:#aaa;font-size:14px;padding:10px 0">メンバーがいません</div>' :
+      members.map(m => {
+        const u = users.find(u => u.id === m.user_id);
+        return u ? `<div class="row">
+          <div><div class="row-title">${u.name}</div><div class="row-sub">${u.company}</div></div>
+          <button onclick="removeMember('${m.id}','${committeeId}',${JSON.stringify(users).replace(/"/g,'&quot;')})" style="background:none;border:1px solid #ccc;border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer;color:#999">削除</button>
+        </div>` : '';
+      }).join('');
+
+    const addOptions = nonMembers.map(u => `<option value="${u.id}">${u.name}（${u.company}）</option>`).join('');
+
+    el.innerHTML = `
+      <button class="back-btn" onclick="navigate('committees')">← 一覧に戻る</button>
+      <div class="card card-accent">
+        <div style="font-size:18px;font-weight:800;margin-bottom:16px">${committee.name} メンバー管理</div>
+        <div class="section-title">現在のメンバー</div>
+        ${memberHtml}
+      </div>
+      <div class="card">
+        <div class="section-title">メンバーを追加</div>
+        <div class="form-group-inline">
+          <select id="add-member-select"><option value="">会員を選択...</option>${addOptions}</select>
+        </div>
+        <button class="submit-btn" onclick="addMember('${committeeId}',${JSON.stringify(users).replace(/"/g,'&quot;')})">追加する</button>
+      </div>`;
+  } catch(e) { alert('読み込みに失敗しました'); }
+}
+
+async function addMember(committeeId, users) {
+  const userId = document.getElementById('add-member-select').value;
+  if (!userId) { alert('会員を選択してください'); return; }
+  try {
+    await axios.post(`${API}/committee_members`, { committee_id: committeeId, user_id: userId }, { headers: headers() });
+    showMemberForm(committeeId, users);
+  } catch(e) { alert('追加に失敗しました'); }
+}
+
+async function removeMember(memberId, committeeId, users) {
+  if (!confirm('このメンバーを削除しますか？')) return;
+  try {
+    await axios.delete(`${API}/committee_members?id=eq.${memberId}`, { headers: headers() });
+    showMemberForm(committeeId, users);
+  } catch(e) { alert('削除に失敗しました'); }
 }
 </script>
 </body>
