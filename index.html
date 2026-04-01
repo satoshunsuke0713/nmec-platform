@@ -519,7 +519,7 @@ async function showEventDetail(id) {
 
     let navHtml = '<div style="display:flex;gap:8px;margin-bottom:16px">';
     if (prevEv) {
-      navHtml += '<button onclick="showEventDetail(\'' + prevEv.id + '\')" style="flex:1;padding:10px;background:none;border:1.5px solid var(--gray-mid);border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text-mid);text-align:left">← ' + prevEv.title.substring(0,12) + '...</button>';
+      navHtml += '<button onclick="showEventDetail(\'' + prevEv.id + '\')" style="flex:1;padding:10px;background:none;border:1.5px solid var(--gray-mid);border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text-mid);text-align:left">← 前へ</button>';
     } else {
       navHtml += '<div style="flex:1"></div>';
     }
