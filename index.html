@@ -516,10 +516,19 @@ async function showEventDetail(id) {
     const currentIdx = allEvs.findIndex(function(ev) { return ev.id === id; });
     const prevEv = currentIdx > 0 ? allEvs[currentIdx - 1] : null;
     const nextEv = currentIdx < allEvs.length - 1 ? allEvs[currentIdx + 1] : null;
-    const navHtml = '<div style="display:flex;gap:8px;margin-bottom:16px">'
-      + (prevEv ? '<button onclick="showEventDetail(\''+prevEv.id+'\')" style="flex:1;padding:10px;background:none;border:1.5px solid var(--gray-mid);border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text-mid)">← ' + prevEv.title.substring(0,15) + '...</button>' : '<div style="flex:1"></div>')
-      + (nextEv ? '<button onclick="showEventDetail(\''+nextEv.id+'\')" style="flex:1;padding:10px;background:none;border:1.5px solid var(--gray-mid);border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text-mid)">' + nextEv.title.substring(0,15) + '... →</button>' : '<div style="flex:1"></div>')
-      + '</div>';
+
+    let navHtml = '<div style="display:flex;gap:8px;margin-bottom:16px">';
+    if (prevEv) {
+      navHtml += '<button onclick="showEventDetail(\'' + prevEv.id + '\')" style="flex:1;padding:10px;background:none;border:1.5px solid var(--gray-mid);border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text-mid);text-align:left">← ' + prevEv.title.substring(0,12) + '...</button>';
+    } else {
+      navHtml += '<div style="flex:1"></div>';
+    }
+    if (nextEv) {
+      navHtml += '<button onclick="showEventDetail(\'' + nextEv.id + '\')" style="flex:1;padding:10px;background:none;border:1.5px solid var(--gray-mid);border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text-mid);text-align:right">' + nextEv.title.substring(0,12) + '... →</button>';
+    } else {
+      navHtml += '<div style="flex:1"></div>';
+    }
+    navHtml += '</div>';
 
     let rsvpHtml = '';
     if (e.status === 'published') {
