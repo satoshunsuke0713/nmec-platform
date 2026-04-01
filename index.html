@@ -524,7 +524,7 @@ async function showEventDetail(id) {
       navHtml += '<div style="flex:1"></div>';
     }
     if (nextEv) {
-      navHtml += '<button onclick="showEventDetail(\'' + nextEv.id + '\')" style="flex:1;padding:10px;background:none;border:1.5px solid var(--gray-mid);border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text-mid);text-align:right">' + nextEv.title.substring(0,12) + '... →</button>';
+      navHtml += '<button onclick="showEventDetail(\'' + nextEv.id + '\')" style="flex:1;padding:10px;background:none;border:1.5px solid var(--gray-mid);border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text-mid);text-align:right">次へ →</button>';
     } else {
       navHtml += '<div style="flex:1"></div>';
     }
