@@ -401,7 +401,7 @@ async function renderEvents() {
   const el = document.getElementById('main-content');
   el.innerHTML = '<div class="loading"></div>';
   try {
-    const res = await axios.get(API + '/events?order=date.desc', { headers: hdrs() });
+    const res = await axios.get(API + '/events?order=date.asc', { headers: hdrs() });
     const canCreate = ['admin','office','director'].includes(currentProfile.role);
     let html = '<div class="filter-btns"><button class="filter-btn active" onclick="filterEvents(\'all\',this)">すべて</button><button class="filter-btn" onclick="filterEvents(\'sanyaku\',this)">三役会議</button><button class="filter-btn" onclick="filterEvents(\'rijikai\',this)">理事会</button><button class="filter-btn" onclick="filterEvents(\'reikai\',this)">例会</button><button class="filter-btn" onclick="filterEvents(\'iinkai\',this)">委員会</button><button class="filter-btn" onclick="filterEvents(\'jigyou\',this)">その他事業</button></div>';
     if (canCreate) html += '<button class="submit-btn-outline" onclick="showEventForm()">＋ イベントを作成</button>';
@@ -501,15 +501,25 @@ async function showEventDetail(id) {
   el.innerHTML = '<div class="loading"></div>';
   try {
     const eRes = await axios.get(API + '/events?id=eq.' + id, { headers: hdrs() });
+    const allEvRes = await axios.get(API + '/events?order=date.asc', { headers: hdrs() });
     const aRes = await axios.get(API + '/attendances?event_id=eq.' + id + '&user_id=eq.' + currentUser.id, { headers: hdrs() });
     const allARes = await axios.get(API + '/attendances?event_id=eq.' + id, { headers: hdrs() });
     const uRes = await axios.get(API + '/users?is_active=eq.true&email=neq.info@nmec.jp&order=sort_order.asc,name.asc', { headers: hdrs() });
     const dRes = await axios.get(API + '/documents?event_id=eq.' + id + '&order=created_at.desc', { headers: hdrs() });
-    const e = eRes.data[0], myAtt = aRes.data[0], allAtts = allARes.data, users = uRes.data, docs = dRes.data;
+    const e = eRes.data[0], allEvs = allEvRes.data, myAtt = aRes.data[0], allAtts = allARes.data, users = uRes.data, docs = dRes.data;
     const agenda = e.agenda || [];
     const cur = myAtt ? myAtt.status : null;
     const canUpload = ['admin','office','director'].includes(currentProfile.role);
     const rsvpUrl = window.location.origin + window.location.pathname + '?rsvp=' + id;
+
+    // 前後のイベントを取得
+    const currentIdx = allEvs.findIndex(function(ev) { return ev.id === id; });
+    const prevEv = currentIdx > 0 ? allEvs[currentIdx - 1] : null;
+    const nextEv = currentIdx < allEvs.length - 1 ? allEvs[currentIdx + 1] : null;
+    const navHtml = '<div style="display:flex;gap:8px;margin-bottom:16px">'
+      + (prevEv ? '<button onclick="showEventDetail(\''+prevEv.id+'\')" style="flex:1;padding:10px;background:none;border:1.5px solid var(--gray-mid);border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text-mid)">← ' + prevEv.title.substring(0,15) + '...</button>' : '<div style="flex:1"></div>')
+      + (nextEv ? '<button onclick="showEventDetail(\''+nextEv.id+'\')" style="flex:1;padding:10px;background:none;border:1.5px solid var(--gray-mid);border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text-mid)">' + nextEv.title.substring(0,15) + '... →</button>' : '<div style="flex:1"></div>')
+      + '</div>';
 
     let rsvpHtml = '';
     if (e.status === 'published') {
