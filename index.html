@@ -68,6 +68,7 @@ body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; bac
 .badge-red { background: var(--red); color: var(--white); }
 .badge-gray { background: var(--gray-mid); color: var(--text-mid); }
 .badge-green { background: #1a7a4a; color: var(--white); }
+.badge-blue { background: #1a3a6a; color: var(--white); }
 .welcome-card { background: var(--red); border-radius: 4px; padding: 28px 24px; color: var(--white); margin-bottom: 16px; position: relative; overflow: hidden; }
 .welcome-card::before { content: 'N'; position: absolute; right: -10px; top: -20px; font-size: 140px; font-weight: 900; color: rgba(255,255,255,0.08); line-height: 1; pointer-events: none; }
 .welcome-card small { font-size: 12px; opacity: 0.7; letter-spacing: 1px; }
@@ -99,6 +100,7 @@ body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; bac
 .member-info { flex: 1; }
 .member-name { font-weight: 800; font-size: 16px; color: var(--text); }
 .member-sub { font-size: 13px; color: var(--text-mid); margin-top: 4px; }
+.committee-tag { display: inline-flex; align-items: center; gap: 4px; background: #f0f4ff; border: 1px solid #c0ccee; border-radius: 2px; padding: 3px 8px; font-size: 11px; font-weight: 700; color: #1a3a6a; margin-top: 6px; }
 .doc-row { display: flex; gap: 14px; align-items: center; }
 .doc-info { flex: 1; }
 .doc-name { font-weight: 700; font-size: 15px; color: var(--text); }
@@ -158,7 +160,8 @@ body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; bac
       <div class="nav-item" id="nav-events" onclick="navigate('events')"><span class="nav-icon">📅</span>会議・事業</div>
       <div class="nav-item" id="nav-motions" onclick="navigate('motions')"><span class="nav-icon">📁</span>資料</div>
       <div class="nav-item" id="nav-members" onclick="navigate('members')"><span class="nav-icon">👥</span>理事メンバー</div>
-      <div class="nav-item" id="nav-committees" onclick="navigate('committees')"><span class="nav-icon">🏛️</span>委員会管理</div>
+      <!-- 委員会管理は管理者のみサイドバーに表示 -->
+      <div class="nav-item" id="nav-committees" onclick="navigate('committees')" style="display:none"><span class="nav-icon">🏛️</span>委員会管理</div>
       <div class="nav-item" id="nav-notices" onclick="navigate('notices')"><span class="nav-icon">🔔</span>お知らせ</div>
     </div>
     <div class="sidebar-user">
@@ -179,6 +182,7 @@ body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; bac
 
   <div class="main" id="main-content"></div>
 
+  <!-- ボトムナビ：委員会ボタンを削除し5項目に -->
   <div class="bottom-nav">
     <button onclick="navigate('dashboard')" id="bn-dashboard" class="active">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>ホーム
@@ -191,9 +195,6 @@ body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; bac
     </button>
     <button onclick="navigate('members')" id="bn-members">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>理事
-    </button>
-    <button onclick="navigate('committees')" id="bn-committees">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>委員会
     </button>
     <button onclick="navigate('notices')" id="bn-notices">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>お知らせ
@@ -251,6 +252,9 @@ function showApp() {
   document.getElementById('sb-name').textContent=currentProfile.name||'—';
   document.getElementById('sb-company').textContent=currentProfile.company||'—';
   document.getElementById('sb-role').textContent=roleLabel(currentProfile.role);
+  // 委員会管理メニューは管理者・事務局・理事のみ表示
+  const canManage=['admin','office','director'].includes(currentProfile.role);
+  document.getElementById('nav-committees').style.display=canManage?'flex':'none';
   if (window._pendingRsvp) { const r=window._pendingRsvp; window._pendingRsvp=null; navigate('events'); showEventDetail(r); }
   else navigate('dashboard');
 }
@@ -397,8 +401,6 @@ async function showEventDetail(id) {
     const e=eRes.data[0], allEvs=allEvRes.data, myAtt=aRes.data[0], allAtts=allARes.data, users=uRes.data, docs=dRes.data;
     const cur=myAtt?myAtt.status:null, canUpload=['admin','office','director'].includes(currentProfile.role);
     const rsvpUrl=window.location.origin+window.location.pathname+'?rsvp='+id;
-
-    // 前後ナビ
     const idx=allEvs.findIndex(function(ev){return ev.id===id;});
     const prev=idx>0?allEvs[idx-1]:null, next=idx<allEvs.length-1?allEvs[idx+1]:null;
 
@@ -408,7 +410,6 @@ async function showEventDetail(id) {
     html+=next?'<button class="nav-btn" onclick="showEventDetail(\''+next.id+'\')">次へ →</button>':'<div></div>';
     html+='</div>';
 
-    // イベント詳細
     html+='<div class="card card-accent"><span class="badge badge-red">'+typeLabel(e.type)+'</span><div class="detail-title">'+e.title+'</div>';
     html+='<div class="detail-row"><span class="detail-label">日時</span><span class="detail-value">'+fmtDate(e.date)+'</span></div>';
     html+='<div class="detail-row"><span class="detail-label">場所</span><span class="detail-value">'+(e.location||'未定')+'</span></div>';
@@ -417,14 +418,12 @@ async function showEventDetail(id) {
     if(e.rsvp_deadline) html+='<div class="detail-row"><span class="detail-label">出欠締切</span><span class="detail-value" style="color:var(--red);font-weight:700">'+fmtDateShort(e.rsvp_deadline)+'</span></div>';
     html+='</div>';
 
-    // 出欠回答
     if(e.status==='published') {
       html+='<div class="card card-accent"><div class="section-title">✋ 出欠回答</div>';
       if(cur) html+='<p style="font-size:14px;color:var(--text-mid);margin-bottom:12px">現在の回答：<span class="badge '+(cur==='attend'?'badge-green':cur==='absent'?'badge-red':'badge-gray')+'">'+(cur==='attend'?'出席':cur==='absent'?'欠席':'保留')+'</span></p>';
       html+='<div class="rsvp-btns"><button class="rsvp-btn '+(cur==='attend'?'selected-attend':'')+'" onclick="submitRsvp(\''+id+'\',\'attend\',\''+(myAtt?myAtt.id:'')+'\')">✅ 出席</button><button class="rsvp-btn '+(cur==='absent'?'selected-absent':'')+'" onclick="submitRsvp(\''+id+'\',\'absent\',\''+(myAtt?myAtt.id:'')+'\')">❌ 欠席</button><button class="rsvp-btn '+(cur==='pending'?'selected-pending':'')+'" onclick="submitRsvp(\''+id+'\',\'pending\',\''+(myAtt?myAtt.id:'')+'\')">🤔 保留</button></div></div>';
     }
 
-    // 出欠集計
     const ac=allAtts.filter(function(a){return a.status==='attend';}).length;
     const ab=allAtts.filter(function(a){return a.status==='absent';}).length;
     const pc=allAtts.filter(function(a){return a.status==='pending';}).length;
@@ -457,7 +456,6 @@ async function showEventDetail(id) {
     }
     html+='</div>';
 
-    // 資料
     html+='<div class="card"><div class="section-title">📎 議事録・資料</div>';
     if(docs.length===0) html+='<div style="color:#aaa;font-size:14px;padding:10px 0">資料がまだありません</div>';
     docs.forEach(function(d){ html+='<div class="row"><div><div class="row-title" style="font-size:14px">📄 '+d.name+'</div><div class="row-sub">'+fmtDateShort(d.created_at)+'</div></div><div style="display:flex;gap:6px"><a href="'+d.file_url+'" target="_blank"><button class="dl-btn">表示</button></a>'+(canUpload?'<button onclick="deleteDocument(\''+d.id+'\',\''+id+'\')" style="padding:6px 12px;background:none;border:1px solid #ccc;border-radius:2px;font-size:12px;cursor:pointer;color:#999">削除</button>':'')+'</div></div>'; });
@@ -537,38 +535,119 @@ async function submitDocumentUpload() {
   } catch(e) { alert('アップロードに失敗しました'); btn.textContent='アップロードする'; btn.disabled=false; }
 }
 
+// ★ 理事メンバー一覧（委員会情報統合版）
 async function renderMembers() {
   const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
   try {
     const uRes=await axios.get(API+'/users?is_active=eq.true&email=neq.info@nmec.jp&order=sort_order.asc,name.asc',{headers:hdrs()});
     const mRes=await axios.get(API+'/committee_members',{headers:hdrs()});
-    const users=uRes.data, allMembers=mRes.data;
-    let html='<input class="search-input" placeholder="🔍 名前・会社名で検索..." oninput="filterMembers(this.value)"><div id="members-list">';
+    const cRes=await axios.get(API+'/committees?order=sort_order.asc',{headers:hdrs()});
+    const users=uRes.data, allMembers=mRes.data, committees=cRes.data;
+
+    // フィルターボタン（委員会別）
+    let html='<input class="search-input" placeholder="🔍 名前・会社名で検索..." oninput="filterMembers(this.value)">';
+    html+='<div class="filter-btns"><button class="filter-btn active" onclick="filterMembersByCommittee(\'all\',this)">すべて</button>';
+    committees.forEach(function(c){ html+='<button class="filter-btn" onclick="filterMembersByCommittee(\''+c.id+'\',this)">'+c.name+'</button>'; });
+    html+='</div>';
+    html+='<div id="members-list">';
+
     if(users.length===0) html+='<div class="empty">データがありません</div>';
+
     users.forEach(function(m){
-      const cm=allMembers.find(function(x){return x.user_id===m.id;});
-      const cmRole=cm?{chair:'委員長',vice_chair:'副委員長',vice_director:'担当副理事長',member:'メンバー'}[cm.role]:null;
-      html+=memberCard(m,cmRole);
+      // このユーザーの委員会メンバー情報をすべて取得
+      const userCommittees=allMembers.filter(function(x){return x.user_id===m.id;});
+      const committeeIds=userCommittees.map(function(x){return x.committee_id;}).join(',');
+      html+=memberCardV2(m, userCommittees, committees, committeeIds);
     });
+
     html+='</div>'; el.innerHTML=html;
   } catch(e) { el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
 }
 
-function memberCard(m,cmRole) {
+function memberCardV2(m, userCommittees, committees, committeeIds) {
   const initial=(m.name||'?').replace(/\s/g,'').charAt(0);
-  const rb=cmRole?'<span class="badge badge-red">'+cmRole+'</span>':(m.committee?'<span class="badge badge-gray">'+m.committee+'</span>':'');
-  return '<div class="card" onclick="showMemberDetail(\''+m.id+'\')" style="cursor:pointer" data-name="'+(m.name||'')+'" data-company="'+(m.company||'')+'"><div class="member-row"><div class="avatar">'+initial+'</div><div class="member-info"><div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px"><div class="member-name">'+(m.name||'—')+'</div>'+rb+'</div><div class="member-sub" style="margin-top:6px">'+(m.company||'')+'</div><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">'+(m.position?'<span class="badge badge-gray">'+m.position+'</span>':'')+(m.committee?'<span style="font-size:12px;color:var(--text-mid)">'+m.committee+'</span>':'')+'</div></div></div></div>';
+  const roleMap={chair:'委員長',vice_chair:'副委員長',vice_director:'担当副理事長',member:'メンバー'};
+
+  // 委員会タグ生成
+  let committeeTags='';
+  userCommittees.forEach(function(cm){
+    const c=committees.find(function(x){return x.id===cm.committee_id;});
+    if(!c) return;
+    const roleName=roleMap[cm.role]||cm.role;
+    const isChair=cm.role==='chair'||cm.role==='vice_director';
+    committeeTags+='<span class="committee-tag" style="'+(isChair?'background:#fff0f0;border-color:#cc9999;color:var(--red)':'')+'">🏛️ '+c.name+(cm.role!=='member'?' · '+roleName:'')+'</span> ';
+  });
+
+  return '<div class="card" onclick="showMemberDetail(\''+m.id+'\')" style="cursor:pointer" data-name="'+(m.name||'')+'" data-company="'+(m.company||'')+'" data-committees="'+committeeIds+'">'
+    +'<div class="member-row">'
+    +'<div class="avatar">'+initial+'</div>'
+    +'<div class="member-info">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">'
+    +'<div class="member-name">'+(m.name||'—')+'</div>'
+    +(m.position?'<span class="badge badge-gray">'+m.position+'</span>':'')
+    +'</div>'
+    +'<div class="member-sub" style="margin-top:4px">'+(m.company||'')+'</div>'
+    +(committeeTags?'<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">'+committeeTags+'</div>':'')
+    +'</div>'
+    +'</div>'
+    +'</div>';
 }
 
-function filterMembers(q) { const lq=q.toLowerCase(); document.querySelectorAll('#members-list .card').forEach(function(c){c.style.display=((c.dataset.name||'').toLowerCase().includes(lq)||(c.dataset.company||'').toLowerCase().includes(lq))?'block':'none';}); }
+function filterMembers(q) {
+  const lq=q.toLowerCase();
+  document.querySelectorAll('#members-list .card').forEach(function(c){
+    c.style.display=((c.dataset.name||'').toLowerCase().includes(lq)||(c.dataset.company||'').toLowerCase().includes(lq))?'block':'none';
+  });
+}
+
+function filterMembersByCommittee(committeeId, btn) {
+  document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active');}); btn.classList.add('active');
+  document.querySelectorAll('#members-list .card').forEach(function(c){
+    if(committeeId==='all') { c.style.display='block'; return; }
+    const ids=(c.dataset.committees||'').split(',');
+    c.style.display=ids.includes(committeeId)?'block':'none';
+  });
+}
 
 async function showMemberDetail(id) {
   const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
   try {
-    const res=await axios.get(API+'/users?id=eq.'+id,{headers:hdrs()}); const m=res.data[0];
+    const [uRes, mRes, cRes]=await Promise.all([
+      axios.get(API+'/users?id=eq.'+id,{headers:hdrs()}),
+      axios.get(API+'/committee_members?user_id=eq.'+id,{headers:hdrs()}),
+      axios.get(API+'/committees',{headers:hdrs()})
+    ]);
+    const m=uRes.data[0], userCommittees=mRes.data, committees=cRes.data;
     const initial=(m.name||'?').replace(/\s/g,'').charAt(0);
     const canSee=['admin','office','director'].includes(currentProfile.role)||currentUser.id===id;
-    el.innerHTML='<button class="back-btn" onclick="navigate(\'members\')">← 一覧に戻る</button><div class="card card-accent"><div style="display:flex;gap:20px;align-items:center;margin-bottom:20px"><div class="avatar avatar-lg">'+initial+'</div><div><div style="font-size:22px;font-weight:800;color:var(--gray-dark)">'+(m.name||'—')+'</div><div style="font-size:15px;color:var(--text-mid);margin-top:6px">'+(m.company||'')+'</div><div style="margin-top:8px"><span class="badge badge-red">'+roleLabel(m.role)+'</span></div></div></div>'+drow('役職',m.position||'—')+drow('所属委員会',m.committee||'—')+(canSee?drow('メール',m.email||'—'):drow('メール','閲覧権限なし'))+(canSee?drow('電話',m.phone||'—'):'')+( m.bio?drow('自己紹介',m.bio):'')+drow('入会年度',m.joined_year?m.joined_year+'年':'—')+'</div>';
+    const roleMap={chair:'委員長',vice_chair:'副委員長',vice_director:'担当副理事長',member:'メンバー'};
+
+    let committeeSection='';
+    if(userCommittees.length>0) {
+      committeeSection='<div class="detail-row"><span class="detail-label">委員会</span><span class="detail-value"><div style="display:flex;flex-direction:column;gap:6px">';
+      userCommittees.forEach(function(cm){
+        const c=committees.find(function(x){return x.id===cm.committee_id;});
+        if(!c) return;
+        const roleName=roleMap[cm.role]||cm.role;
+        committeeSection+='<div><span class="badge '+(cm.role==='chair'||cm.role==='vice_director'?'badge-red':'badge-gray')+'">'+roleName+'</span> <span style="font-size:14px">'+c.name+'</span></div>';
+      });
+      committeeSection+='</div></span></div>';
+    }
+
+    el.innerHTML='<button class="back-btn" onclick="navigate(\'members\')">← 一覧に戻る</button>'
+      +'<div class="card card-accent">'
+      +'<div style="display:flex;gap:20px;align-items:center;margin-bottom:20px">'
+      +'<div class="avatar avatar-lg">'+initial+'</div>'
+      +'<div><div style="font-size:22px;font-weight:800;color:var(--gray-dark)">'+(m.name||'—')+'</div>'
+      +'<div style="font-size:15px;color:var(--text-mid);margin-top:6px">'+(m.company||'')+'</div>'
+      +'<div style="margin-top:8px"><span class="badge badge-red">'+roleLabel(m.role)+'</span></div></div></div>'
+      +drow('役職',m.position||'—')
+      +committeeSection
+      +(canSee?drow('メール',m.email||'—'):drow('メール','閲覧権限なし'))
+      +(canSee?drow('電話',m.phone||'—'):'')
+      +(m.bio?drow('自己紹介',m.bio):'')
+      +drow('入会年度',m.joined_year?m.joined_year+'年':'—')
+      +'</div>';
   } catch(e) { el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
 }
 
