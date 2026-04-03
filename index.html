@@ -227,7 +227,7 @@ async function signup() {
   try {
     const res = await axios.post(AUTH+'/signup', {email,password:pw}, {headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY}});
     accessToken=res.data.access_token; currentUser=res.data.user;
-    await axios.patch(API+'/users?id=eq.'+currentUser.id, {name,company}, {headers:Object.assign({},hdrs(),{'Prefer':'return=minimal'})});
+    await axios.post(API+'/users', {id:currentUser.id,email,name,company,role:'member',is_active:true}, {headers:Object.assign({},hdrs(),{'Prefer':'resolution=merge-duplicates,return=minimal','Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+accessToken})});
     await loadProfile(); showApp();
   } catch(e) { showError('登録に失敗しました。メールアドレスをご確認ください。'); }
 }
