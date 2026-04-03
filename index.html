@@ -67,7 +67,7 @@ body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; bac
 .badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 2px; font-weight: 700; white-space: nowrap; }
 .badge-red { background: var(--red); color: var(--white); }
 .badge-gray { background: var(--gray-mid); color: var(--text-mid); }
-.badge-green { background: #1a7a4a; color: var(--white); }
+.badge-orange { background: #f59e0b; color: #fff; }
 .badge-blue { background: #1a3a6a; color: var(--white); }
 .welcome-card { background: var(--red); border-radius: 4px; padding: 28px 24px; color: var(--white); margin-bottom: 16px; position: relative; overflow: hidden; }
 .welcome-card::before { content: 'N'; position: absolute; right: -10px; top: -20px; font-size: 140px; font-weight: 900; color: rgba(255,255,255,0.08); line-height: 1; pointer-events: none; }
@@ -89,7 +89,7 @@ body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; bac
 .rsvp-btn { padding: 14px 24px; border: 2px solid var(--gray-mid); border-radius: 4px; background: var(--white); cursor: pointer; font-size: 15px; font-weight: 700; color: var(--text); }
 .rsvp-btn.selected-attend { background: #e8f5e9; border-color: #2e7d32; color: #2e7d32; }
 .rsvp-btn.selected-absent { background: var(--red-light); border-color: var(--red); color: var(--red); }
-.rsvp-btn.selected-pending { background: #fff8e1; border-color: #f59e0b; color: #92400e; }
+.rsvp-btn.selected-late { background: #fff8e1; border-color: #f59e0b; color: #92400e; }
 .search-input { width: 100%; padding: 14px 18px; border: 1.5px solid var(--gray-mid); border-radius: 4px; font-size: 16px; outline: none; margin-bottom: 16px; background: var(--white); }
 .filter-btns { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
 .filter-btn { padding: 8px 14px; border-radius: 2px; border: 1.5px solid var(--gray-mid); cursor: pointer; font-size: 13px; font-weight: 700; background: var(--white); color: var(--text-mid); }
@@ -227,7 +227,7 @@ async function signup() {
   try {
     const res = await axios.post(AUTH+'/signup', {email,password:pw}, {headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY}});
     accessToken=res.data.access_token; currentUser=res.data.user;
-    await axios.post(API+'/users', {id:currentUser.id,email,name,company,role:'member'}, {headers:hdrs()});
+    await axios.patch(API+'/users?id=eq.'+currentUser.id, {name,company}, {headers:Object.assign({},hdrs(),{'Prefer':'return=minimal'})});
     await loadProfile(); showApp();
   } catch(e) { showError('登録に失敗しました。メールアドレスをご確認ください。'); }
 }
@@ -419,21 +419,25 @@ async function showEventDetail(id) {
     html+='</div>';
 
     if(e.status==='published') {
+      const curComment=myAtt?myAtt.comment||'':'';
       html+='<div class="card card-accent"><div class="section-title">✋ 出欠回答</div>';
-      if(cur) html+='<p style="font-size:14px;color:var(--text-mid);margin-bottom:12px">現在の回答：<span class="badge '+(cur==='attend'?'badge-green':cur==='absent'?'badge-red':'badge-gray')+'">'+(cur==='attend'?'出席':cur==='absent'?'欠席':'保留')+'</span></p>';
-      html+='<div class="rsvp-btns"><button class="rsvp-btn '+(cur==='attend'?'selected-attend':'')+'" onclick="submitRsvp(\''+id+'\',\'attend\',\''+(myAtt?myAtt.id:'')+'\')">✅ 出席</button><button class="rsvp-btn '+(cur==='absent'?'selected-absent':'')+'" onclick="submitRsvp(\''+id+'\',\'absent\',\''+(myAtt?myAtt.id:'')+'\')">❌ 欠席</button><button class="rsvp-btn '+(cur==='pending'?'selected-pending':'')+'" onclick="submitRsvp(\''+id+'\',\'pending\',\''+(myAtt?myAtt.id:'')+'\')">🤔 保留</button></div></div>';
+      if(cur) html+='<p style="font-size:14px;color:var(--text-mid);margin-bottom:12px">現在の回答：<span class="badge '+(cur==='attend'?'badge-green':cur==='absent'?'badge-red':'badge-orange')+'">'+(cur==='attend'?'出席':cur==='absent'?'欠席':'遅刻・早退')+'</span></p>';
+      html+='<div class="rsvp-btns"><button class="rsvp-btn '+(cur==='attend'?'selected-attend':'')+'" onclick="selectRsvp(this,\'attend\')">✅ 出席</button><button class="rsvp-btn '+(cur==='absent'?'selected-absent':'')+'" onclick="selectRsvp(this,\'absent\')">❌ 欠席</button><button class="rsvp-btn '+(cur==='late'?'selected-late':'')+'" onclick="selectRsvp(this,\'late\')">🕐 遅刻・早退</button></div>';
+      html+='<div style="margin-top:14px"><label style="font-size:13px;font-weight:700;color:var(--gray-dark);display:block;margin-bottom:6px">備考（任意）</label><textarea id="rsvp-comment" placeholder="例：15分ほど遅刻します" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;resize:vertical;min-height:72px;outline:none">'+curComment+'</textarea></div>';
+      html+='<button class="submit-btn" style="margin-top:10px" onclick="submitRsvpWithComment(\''+id+'\',\''+(myAtt?myAtt.id:'')+'\')">回答を送信する</button>';
+      html+='</div>';
     }
 
     const ac=allAtts.filter(function(a){return a.status==='attend';}).length;
     const ab=allAtts.filter(function(a){return a.status==='absent';}).length;
-    const pc=allAtts.filter(function(a){return a.status==='pending';}).length;
+    const pc=allAtts.filter(function(a){return a.status==='late';}).length;
     const aids=allAtts.map(function(a){return a.user_id;});
     const uc=users.filter(function(u){return !aids.includes(u.id);}).length;
 
     html+='<div class="card"><div class="section-title">📊 出欠集計</div><div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">';
     html+='<div style="text-align:center;background:#e8f5e9;border-radius:8px;padding:12px 20px;flex:1"><div style="font-size:28px;font-weight:800;color:#2e7d32">'+ac+'</div><div style="font-size:12px;color:#2e7d32;font-weight:700">出席</div></div>';
     html+='<div style="text-align:center;background:#fef2f2;border-radius:8px;padding:12px 20px;flex:1"><div style="font-size:28px;font-weight:800;color:var(--red)">'+ab+'</div><div style="font-size:12px;color:var(--red);font-weight:700">欠席</div></div>';
-    html+='<div style="text-align:center;background:#fff8e1;border-radius:8px;padding:12px 20px;flex:1"><div style="font-size:28px;font-weight:800;color:#f59e0b">'+pc+'</div><div style="font-size:12px;color:#f59e0b;font-weight:700">保留</div></div>';
+    html+='<div style="text-align:center;background:#fff8e1;border-radius:8px;padding:12px 20px;flex:1"><div style="font-size:28px;font-weight:800;color:#f59e0b">'+pc+'</div><div style="font-size:12px;color:#f59e0b;font-weight:700">遅刻・早退</div></div>';
     html+='<div style="text-align:center;background:#f5f5f5;border-radius:8px;padding:12px 20px;flex:1"><div style="font-size:28px;font-weight:800;color:#999">'+uc+'</div><div style="font-size:12px;color:#999;font-weight:700">未回答</div></div></div>';
 
     if(['admin','office','director'].includes(currentProfile.role)) {
@@ -443,8 +447,8 @@ async function showEventDetail(id) {
     html+='<div class="section-title">回答一覧</div>';
     allAtts.forEach(function(a){
       const u=users.find(function(x){return x.id===a.user_id;}); if(!u) return;
-      const cls=a.status==='attend'?'badge-green':a.status==='absent'?'badge-red':'badge-gray';
-      const lbl=a.status==='attend'?'出席':a.status==='absent'?'欠席':'保留';
+      const cls=a.status==='attend'?'badge-green':a.status==='absent'?'badge-red':a.status==='late'?'badge-orange':'badge-gray';
+      const lbl=a.status==='attend'?'出席':a.status==='absent'?'欠席':'遅刻・早退';
       html+='<div class="row"><div><div class="row-title" style="font-size:14px">'+u.name+'</div><div class="row-sub">'+(u.company||'')+'</div>'+(a.comment?'<div class="row-sub">💬 '+a.comment+'</div>':'')+'</div><span class="badge '+cls+'">'+lbl+'</span></div>';
     });
     if(uc>0) {
@@ -468,7 +472,29 @@ async function showEventDetail(id) {
 
 function copyRsvpUrl(url) { navigator.clipboard.writeText(url).then(function(){alert('URLをコピーしました！');}).catch(function(){prompt('以下のURLをコピーしてください',url);}); }
 
-async function submitRsvp(eventId,status,existingId) {
+function selectRsvp(btn,status) {
+  document.querySelectorAll('.rsvp-btn').forEach(function(b){ b.classList.remove('selected-attend','selected-absent','selected-late'); });
+  if(status==='attend') btn.classList.add('selected-attend');
+  else if(status==='absent') btn.classList.add('selected-absent');
+  else if(status==='late') btn.classList.add('selected-late');
+}
+
+async function submitRsvpWithComment(eventId,existingId) {
+  let status=null;
+  if(document.querySelector('.rsvp-btn.selected-attend')) status='attend';
+  else if(document.querySelector('.rsvp-btn.selected-absent')) status='absent';
+  else if(document.querySelector('.rsvp-btn.selected-late')) status='late';
+  if(!status) { alert('出欠を選択してください'); return; }
+  const comment=document.getElementById('rsvp-comment')?document.getElementById('rsvp-comment').value.trim():'';
+  const btn=document.querySelector('#main-content .submit-btn');
+  if(btn){btn.textContent='送信中...';btn.disabled=true;}
+  try {
+    if(existingId) await axios.patch(API+'/attendances?id=eq.'+existingId,{status,comment:comment||null,responded_at:new Date().toISOString()},{headers:Object.assign({},hdrs(),{'Prefer':'return=minimal'})});
+    else await axios.post(API+'/attendances',{event_id:eventId,user_id:currentUser.id,status,comment:comment||null},{headers:hdrs()});
+    showEventDetail(eventId);
+  } catch(e) { alert('回答の送信に失敗しました'); if(btn){btn.textContent='回答を送信する';btn.disabled=false;} }
+}
+  async function submitRsvp(eventId,status,existingId) {
   try {
     if(existingId) await axios.patch(API+'/attendances?id=eq.'+existingId,{status,responded_at:new Date().toISOString()},{headers:Object.assign({},hdrs(),{'Prefer':'return=minimal'})});
     else await axios.post(API+'/attendances',{event_id:eventId,user_id:currentUser.id,status},{headers:hdrs()});
