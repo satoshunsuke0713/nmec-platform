@@ -897,7 +897,7 @@ async function showProposalForm(id) {
   const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
   try {
     const cRes=await axios.get(API+'/committees?order=sort_order.asc',{headers:hdrs()});
-    const committees=cRes.data; const uRes2=await axios.get(API+'/users?select=id,name',{headers:hdrs()}); const allUsers=uRes2.data; committees.forEach(function(c){   const leader=allUsers.find(function(u){return u.id===c.chair_id;});   c.chair_name=leader?leader.name:''; });
+    const committees=cRes.data; const cmRes=await axios.get(API+'/committee_members?role=eq.chair&select=committee_id,user_id',{headers:hdrs()}); const uRes2=await axios.get(API+'/users?select=id,name',{headers:hdrs()}); const allUsers=uRes2.data; committees.forEach(function(c){   const cm=cmRes.data.find(function(m){return m.committee_id===c.id;});   const leader=cm?allUsers.find(function(u){return u.id===cm.user_id;}):null;   c.chair_name=leader?leader.name:''; });
     let p={title:'',committee:'',committee_leader:'',is_jimukyoku:false,purpose:'',schedule:'',venue:'',speaker:'',content:'',target:'',fee:'',budget_income:[{item:'',amount:0}],budget_expense:[{item:'',amount:0}],attachments:[],status:'draft'};
     if(id) {
       const pRes=await axios.get(API+'/proposals?id=eq.'+id,{headers:hdrs()});
