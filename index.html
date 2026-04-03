@@ -171,6 +171,7 @@ body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; bac
       <div class="sidebar-user-role" id="sb-role">—</div>
       <div class="sidebar-user-name" id="sb-name">—</div>
       <div class="sidebar-user-company" id="sb-company">—</div>
+      <button class="logout-btn" style="margin-bottom:8px;background:rgba(255,255,255,0.15);color:var(--white);" onclick="navigate('profile')">プロフィール編集</button>
       <button class="logout-btn" onclick="logout()">ログアウト</button>
     </div>
   </div>
@@ -273,13 +274,13 @@ function fmtDateShort(d) { const dt=new Date(d); return dt.getFullYear()+'/'+(dt
 
 function navigate(page) {
   closeSidebar();
-  const titles={dashboard:'ダッシュボード',events:'会議・事業',motions:'資料',members:'理事メンバー',notices:'お知らせ',committees:'委員会管理',proposals:'議案書'};
+  const titles={dashboard:'ダッシュボード',events:'会議・事業',motions:'資料',members:'理事メンバー',notices:'お知らせ',committees:'委員会管理',proposals:'議案書',profile:'プロフィール編集'};
   document.getElementById('header-title').textContent=titles[page]||'';
   document.querySelectorAll('.nav-item').forEach(function(el){el.classList.remove('active');});
   document.querySelectorAll('.bottom-nav button').forEach(function(el){el.classList.remove('active');});
   const ni=document.getElementById('nav-'+page), bi=document.getElementById('bn-'+page);
   if(ni) ni.classList.add('active'); if(bi) bi.classList.add('active');
-  const pages={dashboard:renderDashboard,events:renderEvents,motions:renderMotions,members:renderMembers,notices:renderNotices,committees:renderCommittees,proposals:renderProposals};
+  const pages={dashboard:renderDashboard,events:renderEvents,motions:renderMotions,members:renderMembers,notices:renderNotices,committees:renderCommittees,proposals:renderProposals,profile:renderProfile};
   if(pages[page]) pages[page]();
 }
 
@@ -1107,6 +1108,42 @@ ${(p.budget_expense||[]).map(function(r){return '<tr><td>'+r.item+'</td><td styl
 </body></html>`);
   win.document.close();
 }
+async function renderProfile() {
+  const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
+  try {
+    const res=await axios.get(API+'/users?id=eq.'+currentUser.id,{headers:hdrs()});
+    const m=res.data[0];
+    el.innerHTML='<div class="card card-accent"><div class="section-title">👤 プロフィール編集</div>'
+      +'<div class="form-group-inline"><label>お名前</label><input type="text" id="pf-name" value="'+(m.name||'')+'" placeholder="山田 太郎"></div>'
+      +'<div class="form-group-inline"><label>会社名</label><input type="text" id="pf-company" value="'+(m.company||'')+'" placeholder="株式会社〇〇"></div>'
+      +'<div class="form-group-inline"><label>役職</label><input type="text" id="pf-position" value="'+(m.position||'')+'" placeholder="例：代表取締役"></div>'
+      +'<div class="form-group-inline"><label>電話番号</label><input type="text" id="pf-phone" value="'+(m.phone||'')+'" placeholder="090-0000-0000"></div>'
+      +'<div class="form-group-inline"><label>自己紹介</label><textarea id="pf-bio" placeholder="自己紹介を入力" style="min-height:100px">'+(m.bio||'')+'</textarea></div>'
+      +'<button class="submit-btn" onclick="saveProfile()">保存する</button>'
+      +'</div>';
+  } catch(e) { el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
+}
+async function saveProfile() {
+  const name=document.getElementById('pf-name').value;
+  if(!name) { alert('お名前は必須です'); return; }
+  const btn=document.querySelector('#main-content .submit-btn');
+  if(btn){btn.textContent='保存中...';btn.disabled=true;}
+  try {
+    await axios.patch(API+'/users?id=eq.'+currentUser.id,{
+      name,
+      company:document.getElementById('pf-company').value,
+      position:document.getElementById('pf-position').value,
+      phone:document.getElementById('pf-phone').value,
+      bio:document.getElementById('pf-bio').value
+    },{headers:Object.assign({},hdrs(),{'Prefer':'return=minimal'})});
+    currentProfile.name=name;
+    currentProfile.company=document.getElementById('pf-company').value;
+    document.getElementById('sb-name').textContent=name;
+    document.getElementById('sb-company').textContent=document.getElementById('pf-company').value;
+    alert('保存しました！');
+    if(btn){btn.textContent='保存する';btn.disabled=false;}
+  } catch(e) { alert('保存に失敗しました'); if(btn){btn.textContent='保存する';btn.disabled=false;} }
+}  
   checkRsvpUrl();
 </script>
 </body>
