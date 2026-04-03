@@ -954,9 +954,8 @@ async function removeMember(memberId,committeeId,uj) {
       attachments: JSON.parse(JSON.stringify(p.attachments||[]))
     };
     calcBudgetTotals();
-  } catch(e) { el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
+} catch(e) { console.error(e); el.innerHTML='<div class="empty">読み込みに失敗しました: '+e.message+'</div>'; }
 }
-
 function getCommitteeLeader() {
   const sel=document.getElementById('pr-committee');
   if(!sel) return '';
