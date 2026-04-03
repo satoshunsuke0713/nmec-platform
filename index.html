@@ -904,8 +904,8 @@ async function showProposalForm(id) {
       p=pRes.data[0];
     }
     const committeeOpts=committees.map(function(c){
-      const leader=c.name; 
-      return '<option value="'+c.name+'"'+(p.committee===c.name&&!p.is_jimukyoku?' selected':'')+'>'+c.name+'</option>';
+      const leader=c.chair_name||''; 
+      return '<option value="'+c.name+'" data-leader="'+leader+'"'+(p.committee===c.name&&!p.is_jimukyoku?' selected':'')+'>'+c.name+'</option>';
     }).join('');
     const incomeRows=(p.budget_income||[{item:'',amount:0}]).map(function(r,i){
       return '<tr><td><input type="text" value="'+(r.item||'')+'" onchange="updateBudget(\'income\','+i+',\'item\',this.value)" style="width:100%;padding:6px;border:1px solid var(--gray-mid);border-radius:2px;font-size:14px"></td><td><input type="number" value="'+(r.amount||0)+'" onchange="updateBudget(\'income\','+i+',\'amount\',this.value)" style="width:100%;padding:6px;border:1px solid var(--gray-mid);border-radius:2px;font-size:14px;text-align:right"></td><td><button onclick="removeBudgetRow(\'income\','+i+')" style="padding:4px 8px;background:none;border:1px solid #ccc;border-radius:2px;font-size:12px;cursor:pointer;color:#999">削除</button></td></tr>';
@@ -963,7 +963,13 @@ async function showProposalForm(id) {
   } catch(e) { el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
 }
 
-function toggleProposalType(val) {
+function getCommitteeLeader() {
+  const sel=document.getElementById('pr-committee');
+  if(!sel) return '';
+  const opt=sel.options[sel.selectedIndex];
+  return opt?opt.getAttribute('data-leader')||'':'';
+}
+  function toggleProposalType(val) {
   document.getElementById('pr-committee-select').style.display=val==='committee'?'block':'none';
   document.getElementById('pr-jimukyoku-info').style.display=val==='jimukyoku'?'block':'none';
 }
@@ -1003,7 +1009,7 @@ async function saveProposal(id,status) {
   const data={
     title:document.getElementById('pr-title').value,
     committee:committee,
-    committee_leader:isJimukyoku?'山木専務':'',
+    committee_leader:isJimukyoku?'山木専務':getCommitteeLeader(),
     is_jimukyoku:isJimukyoku,
     purpose:document.getElementById('pr-purpose').value,
     schedule:document.getElementById('pr-schedule').value,
@@ -1057,13 +1063,12 @@ async function downloadProposalPDF(id) {
   const expenseTotal=(p.budget_expense||[]).reduce(function(s,r){return s+(parseInt(r.amount)||0);},0);
   const today=new Date();
   const dateStr=today.getFullYear()+'年'+(today.getMonth()+1)+'月'+today.getDate()+'日';
-  const committeeStr=p.is_jimukyoku?'事務局　　山木専務':'担当 '+p.committee;
+  const committeeStr=p.is_jimukyoku?'事務局　担当　山木専務':'担当 '+p.committee+'　委員長　'+p.committee_leader;
 
   const win=window.open('','_blank');
   win.document.write(`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
 <style>
-body{font-family:'MS Mincho','Hiragino Mincho ProN',serif;font-size:11pt;margin:0;padding:20mm 20mm 20mm 25mm;line-height:1.8;}
-h1{font-size:13pt;text-align:center;margin:20px 0;}
+body{font-family:'MS Mincho','Hiragino Mincho ProN',serif;font-size:10pt;margin:0;padding:12mm 15mm 12mm 20mm;line-height:1.6;} h1{font-size:13pt;text-align:center;margin:10px 0;word-break:break-all;} 
 .header-right{text-align:right;margin-bottom:8px;}
 .header-left{margin-bottom:20px;}
 table{width:100%;border-collapse:collapse;margin:8px 0;}
@@ -1073,7 +1078,7 @@ th{background:#f0f0f0;text-align:left;}
 .section{margin:12px 0;}
 .section-title{font-weight:bold;margin-bottom:4px;}
 .content-box{border:1px solid #ccc;padding:8px;min-height:40px;white-space:pre-wrap;}
-@media print{body{margin:0;padding:15mm 15mm 15mm 20mm;}}
+@media print{   body{margin:0;padding:10mm 12mm 10mm 18mm;font-size:9pt;line-height:1.5;}   table{page-break-inside:avoid;}   h1{font-size:11pt;} }
 </style></head><body>
 <div class="header-right">${dateStr}</div>
 <div class="header-left">新潟市異業種交流研究会協同組合<br>理事長　佐藤 俊輔 様</div>
