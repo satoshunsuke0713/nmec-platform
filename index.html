@@ -583,6 +583,7 @@ async function renderMembers() {
 
     // フィルターボタン（委員会別）
     let html='<input class="search-input" placeholder="🔍 名前・会社名で検索..." oninput="filterMembers(this.value)">';
+    html+='<div class="filter-btns"><button class="filter-btn active" onclick="filterMembersByPosition(\'all\',this)">すべて</button><button class="filter-btn" onclick="filterMembersByPosition(\'理事長\',this)">理事長</button><button class="filter-btn" onclick="filterMembersByPosition(\'副理事長\',this)">副理事長</button><button class="filter-btn" onclick="filterMembersByPosition(\'専務理事\',this)">専務理事</button><button class="filter-btn" onclick="filterMembersByPosition(\'監事\',this)">監事</button></div>';
     html+='<div class="filter-btns"><button class="filter-btn active" onclick="filterMembersByCommittee(\'all\',this)">すべて</button>';
     committees.forEach(function(c){ html+='<button class="filter-btn" onclick="filterMembersByCommittee(\''+c.id+'\',this)">'+c.name+'</button>'; });
     html+='</div>';
@@ -632,7 +633,7 @@ function memberCardV2(m, userCommittees, chairCommittees, committees, committeeI
     committeeTags+='<span class="committee-tag" style="'+(isHighlight?'background:#fff0f0;border-color:#cc9999;color:var(--red)':'')+'">🏛️ '+c.name+(cm.role!=='member'?' · '+roleName:'')+'</span> ';
   });
 
-  return '<div class="card" onclick="showMemberDetail(\''+m.id+'\')" style="cursor:pointer" data-name="'+(m.name||'')+'" data-company="'+(m.company||'')+'" data-committees="'+committeeIds+'">'
+  return '<div class="card" onclick="showMemberDetail(\''+m.id+'\')" style="cursor:pointer" data-name="'+(m.name||'')+'" data-company="'+(m.company||'')+'" data-committees="'+committeeIds+'" data-position="'+(m.position||'')+'">'
     +'<div class="member-row">'
     +'<div class="avatar">'+initial+'</div>'
     +'<div class="member-info">'
@@ -653,7 +654,13 @@ function filterMembers(q) {
     c.style.display=((c.dataset.name||'').toLowerCase().includes(lq)||(c.dataset.company||'').toLowerCase().includes(lq))?'block':'none';
   });
 }
-
+function filterMembersByPosition(position, btn) {
+  document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active');}); btn.classList.add('active');
+  document.querySelectorAll('#members-list .card').forEach(function(c){
+    if(position==='all') { c.style.display='block'; return; }
+    c.style.display=(c.dataset.position||'')=== position?'block':'none';
+  });
+}
 function filterMembersByCommittee(committeeId, btn) {
   document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active');}); btn.classList.add('active');
   document.querySelectorAll('#members-list .card').forEach(function(c){
