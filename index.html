@@ -68,6 +68,8 @@ body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; bac
 .badge-red { background: var(--red); color: var(--white); }
 .badge-gray { background: var(--gray-mid); color: var(--text-mid); }
 .badge-orange { background: #f59e0b; color: #fff; }
+.badge-purple { background: #7c3aed; color: #fff; }
+.badge-teal { background: #0d9488; color: #fff; }
 .badge-blue { background: #1a3a6a; color: var(--white); }
 .welcome-card { background: var(--red); border-radius: 4px; padding: 28px 24px; color: var(--white); margin-bottom: 16px; position: relative; overflow: hidden; }
 .welcome-card::before { content: 'N'; position: absolute; right: -10px; top: -20px; font-size: 140px; font-weight: 900; color: rgba(255,255,255,0.08); line-height: 1; pointer-events: none; }
@@ -265,7 +267,7 @@ function showApp() {
 
 function roleLabel(r) { return {admin:'管理者',office:'事務局',director:'理事・委員長',member:'一般会員'}[r]||r; }
 function typeLabel(t) { return {sanyaku:'三役会議',rijikai:'理事会',reikai:'例会',iinkai:'委員会',jigyou:'その他事業',other:'その他'}[t]||t; }
-function typeBadge(t) { return {sanyaku:'badge-orange',rijikai:'badge-green',reikai:'badge-red',iinkai:'badge-blue',jigyou:'badge-gray',other:'badge-gray'}[t]||'badge-gray'; }
+function typeBadge(t) { return {sanyaku:'badge-orange',rijikai:'badge-red',reikai:'badge-green',iinkai:'badge-blue',jigyou:'badge-purple',other:'badge-teal'}[t]||'badge-blue'; }
 function fmtDate(d) { const dt=new Date(d); return dt.getFullYear()+'年'+(dt.getMonth()+1)+'月'+dt.getDate()+'日 '+dt.getHours()+':'+String(dt.getMinutes()).padStart(2,'0'); }
 function fmtDateShort(d) { const dt=new Date(d); return dt.getFullYear()+'/'+(dt.getMonth()+1)+'/'+dt.getDate(); }
 
