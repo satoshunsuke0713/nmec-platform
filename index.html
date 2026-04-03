@@ -877,7 +877,6 @@ async function removeMember(memberId,committeeId,uj) {
   try { await axios.delete(API+'/committee_members?id=eq.'+memberId,{headers:hdrs()}); showMemberForm(committeeId,uj); }
   catch(e) { alert('削除に失敗しました'); }
 }
-
   const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
   try {
     const res=await axios.get(API+'/proposals?order=created_at.desc',{headers:hdrs()});
