@@ -304,6 +304,7 @@ async function renderDashboard() {
     if(notRes.data.length>0) {
       html+='<div class="card"><div class="section-title">🔔 新着お知らせ</div>';
       notRes.data.forEach(function(n){ html+='<div class="row" onclick="showNoticeDetail(\''+n.id+'\')" style="cursor:pointer"><div>'+(n.priority==='important'?'<span class="badge badge-red" style="margin-bottom:6px;display:inline-block">重要</span><br>':'')+'<div class="row-title">'+n.title+'</div><div class="row-sub">'+fmtDateShort(n.created_at)+'</div></div></div>'; });
+      html+='<div onclick="navigate(\'notices\')" style="text-align:center;padding:10px;font-size:13px;color:var(--red);font-weight:700;cursor:pointer">さらに新着を見る →</div>';
       html+='</div>';
     }
     if(evRes.data.length===0&&notRes.data.length===0) html+='<div class="empty">データがまだありません</div>';
