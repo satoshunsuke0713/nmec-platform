@@ -264,7 +264,7 @@ function showApp() {
 }
 
 function roleLabel(r) { return {admin:'管理者',office:'事務局',director:'理事・委員長',member:'一般会員'}[r]||r; }
-function typeLabel(t) { return {sanyaku:'三役会議',rijikai:'理事会',reikai:'例会',iinkai:'委員会',jigyou:'その他事業',other:'その他'}[t]||t; }
+function typeBadge(t) { return {sanyaku:'badge-orange',rijikai:'badge-green',reikai:'badge-red',iinkai:'badge-blue',jigyou:'badge-gray',other:'badge-gray'}[t]||'badge-gray'; }
 function fmtDate(d) { const dt=new Date(d); return dt.getFullYear()+'年'+(dt.getMonth()+1)+'月'+dt.getDate()+'日 '+dt.getHours()+':'+String(dt.getMinutes()).padStart(2,'0'); }
 function fmtDateShort(d) { const dt=new Date(d); return dt.getFullYear()+'/'+(dt.getMonth()+1)+'/'+dt.getDate(); }
 
@@ -295,7 +295,7 @@ async function renderDashboard() {
     let html='<div class="welcome-card"><small>WELCOME</small><h2>'+(currentProfile.name||'')+' 様</h2><p>'+(currentProfile.company||'')+'　|　'+roleLabel(currentProfile.role)+'</p></div>';
     if(evRes.data.length>0) {
       html+='<div class="card card-accent"><div class="section-title">📅 次回の予定</div>';
-      evRes.data.forEach(function(e){ html+='<div class="row" onclick="showEventDetail(\''+e.id+'\')" style="cursor:pointer"><div><div class="row-title">'+e.title+'</div><div class="row-sub">🕐 '+fmtDate(e.date)+'　📍'+(e.location||'')+'</div></div><span class="badge badge-red">'+typeLabel(e.type)+'</span></div>'; });
+      evRes.data.forEach(function(e){ html+='<div class="row" onclick="showEventDetail(\''+e.id+'\')" style="cursor:pointer"><div><div class="row-title">'+e.title+'</div><div class="row-sub">🕐 '+fmtDate(e.date)+'　📍'+(e.location||'')+'</div></div><span class="badge '+typeBadge(e.type)+'">'+typeLabel(e.type)+'</span></div>'; });
       html+='</div>';
     }
     if(notRes.data.length>0) {
@@ -326,7 +326,7 @@ async function renderEvents() {
 function eventCard(e) {
   const sb=e.status==='done'?'<span class="badge badge-gray">終了</span>':'<span class="badge badge-green">開催予定</span>';
   const canEdit=['admin','office','director'].includes(currentProfile?currentProfile.role:'');
-  return '<div class="card" data-type="'+e.type+'"><div style="display:flex;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px"><div style="display:flex;gap:6px"><span class="badge badge-red">'+typeLabel(e.type)+'</span>'+sb+'</div>'+(canEdit?'<div style="display:flex;gap:6px"><button onclick="showEventEditForm(\''+e.id+'\')" style="background:none;border:1px solid var(--gray-mid);border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text-mid)">編集</button><button onclick="deleteEvent(\''+e.id+'\')" style="background:none;border:1px solid #ccc;border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer;color:#999">削除</button></div>':'')+'</div><div class="row-title" style="font-size:17px;margin-bottom:8px;cursor:pointer" onclick="showEventDetail(\''+e.id+'\')">'+e.title+'</div><div class="row-sub" style="cursor:pointer" onclick="showEventDetail(\''+e.id+'\')">🕐 '+fmtDate(e.date)+'　📍'+(e.location||'場所未定')+'</div>'+(e.committee?'<div class="row-sub" style="margin-top:4px">🏛️ '+e.committee+'</div>':'')+'</div>';
+  return '<div class="card" data-type="'+e.type+'"><div style="display:flex;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px"><div style="display:flex;gap:6px"><span class="badge '+typeBadge(e.type)+'">'+typeLabel(e.type)+'</span>'+sb+'</div>'+(canEdit?'<div style="display:flex;gap:6px"><button onclick="showEventEditForm(\''+e.id+'\')" style="background:none;border:1px solid var(--gray-mid);border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text-mid)">編集</button><button onclick="deleteEvent(\''+e.id+'\')" style="background:none;border:1px solid #ccc;border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer;color:#999">削除</button></div>':'')+'</div><div class="row-title" style="font-size:17px;margin-bottom:8px;cursor:pointer" onclick="showEventDetail(\''+e.id+'\')">'+e.title+'</div><div class="row-sub" style="cursor:pointer" onclick="showEventDetail(\''+e.id+'\')">🕐 '+fmtDate(e.date)+'　📍'+(e.location||'場所未定')+'</div>'+(e.committee?'<div class="row-sub" style="margin-top:4px">🏛️ '+e.committee+'</div>':'')+'</div>';
 }
 
 function filterEvents(type,btn) {
@@ -414,7 +414,7 @@ async function showEventDetail(id) {
     html+=next?'<button class="nav-btn" onclick="showEventDetail(\''+next.id+'\')">次へ →</button>':'<div></div>';
     html+='</div>';
 
-    html+='<div class="card card-accent"><span class="badge badge-red">'+typeLabel(e.type)+'</span><div class="detail-title">'+e.title+'</div>';
+    html+='<div class="card card-accent"><span class="badge '+typeBadge(e.type)+'">'+typeLabel(e.type)+'</span><div class="detail-title">'+e.title+'</div>';
     html+='<div class="detail-row"><span class="detail-label">日時</span><span class="detail-value">'+fmtDate(e.date)+'</span></div>';
     html+='<div class="detail-row"><span class="detail-label">場所</span><span class="detail-value">'+(e.location||'未定')+'</span></div>';
     if(e.committee) html+='<div class="detail-row"><span class="detail-label">担当委員会</span><span class="detail-value">'+e.committee+'</span></div>';
