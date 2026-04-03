@@ -905,7 +905,7 @@ async function showProposalForm(id) {
     }
     const committeeOpts=committees.map(function(c){
       const leader=c.chair_name||''; 
-      return '<option value="'+c.name+'" data-leader="'+leader+'"'+(p.committee===c.name&&!p.is_jimukyoku?' selected':'')+'>'+c.name+'</option>';
+      return '<option value="'+c.name+'" data-leader="'+(c.chair_name||'')+'"'+(p.committee===c.name&&!p.is_jimukyoku?' selected':'')+'>'+c.name+'</option>';
     }).join('');
     const incomeRows=(p.budget_income||[{item:'',amount:0}]).map(function(r,i){
       return '<tr><td><input type="text" value="'+(r.item||'')+'" onchange="updateBudget(\'income\','+i+',\'item\',this.value)" style="width:100%;padding:6px;border:1px solid var(--gray-mid);border-radius:2px;font-size:14px"></td><td><input type="number" value="'+(r.amount||0)+'" onchange="updateBudget(\'income\','+i+',\'amount\',this.value)" style="width:100%;padding:6px;border:1px solid var(--gray-mid);border-radius:2px;font-size:14px;text-align:right"></td><td><button onclick="removeBudgetRow(\'income\','+i+')" style="padding:4px 8px;background:none;border:1px solid #ccc;border-radius:2px;font-size:12px;cursor:pointer;color:#999">削除</button></td></tr>';
