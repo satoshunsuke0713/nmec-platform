@@ -991,7 +991,7 @@ async function updateNotice(id) {
       fileUrl=SUPABASE_URL+'/storage/v1/object/public/documents/'+filePath;
       if(fileCat) await axios.post(API+'/documents',{name:fileDisplayName||title+'（添付）',file_url:fileUrl,file_size:(file.size/1024).toFixed(0)+'KB',category:fileCat,year:new Date().getFullYear(),uploaded_by:currentUser.id},{headers:hdrs()});
     }
-    const upd={title,body:document.getElementById('no-body').value,priority:document.getElementById('no-priority').value};
+    const upd={title,body:document.getElementById('no-body').value,priority:document.getElementById('no-priority').value,category:document.getElementById('no-category')?document.getElementById('no-category').value:'general'};
     if(fileUrl) upd.file_url=fileUrl;
     await axios.patch(API+'/notices?id=eq.'+id,upd,{headers:Object.assign({},hdrs(),{'Prefer':'return=minimal'})});
     alert('更新しました！'); navigate('notices');
