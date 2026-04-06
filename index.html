@@ -1222,6 +1222,7 @@ ${(p.budget_income||[]).map(function(r){return '<tr><td>'+r.item+'</td><td style
 <table style="margin-top:4px"><thead><tr><th colspan="2" style="padding:2px 6px;">支出の部</th></tr><tr><th>項目</th><th style="text-align:right;width:140px">金額（円）</th><th>備考</th></tr></thead><tbody>
 ${(p.budget_expense||[]).map(function(r){return '<tr><td>'+r.item+'</td><td style="text-align:right">'+parseInt(r.amount||0).toLocaleString()+'</td><td>'+(r.note||'')+'</td></tr>';}).join('')}
 </tbody><tfoot><tr class="total-row"><td>支出計</td><td style="text-align:right">${expenseTotal.toLocaleString()}</td></tr></tfoot></table>
+${(p.attachments&&p.attachments.length>0)?'<div class="section"><div class="section-title">添付資料</div><table><tbody>'+p.attachments.map(function(a){return '<tr><td><a href="'+a.url+'" target="_blank">📎 '+a.name+'</a></td></tr>';}).join('')+'</tbody></table></div>':''}
 </div>
 </body></html>`;
   const printScript='<script>window.onload=function(){window.print();}<\/script>';
