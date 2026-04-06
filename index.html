@@ -384,7 +384,7 @@ async function submitNewEvent() {
   try {
     const eventDate=new Date(date);
     const dateStr=eventDate.getFullYear()+'年'+(eventDate.getMonth()+1)+'月'+eventDate.getDate()+'日 '+eventDate.getHours()+':'+String(eventDate.getMinutes()).padStart(2,'0');
-    await axios.post(API+'/events',{title,type,date:eventDate.toISOString(),location,description:desc,committee:committee||null,rsvp_deadline:deadline?new Date(deadline).toISOString():null,?new Date(document.getElementById('ev-deadline').value).toISOString():null,status:'published',created_by:currentUser.id},{headers:hdrs()});
+    await axios.post(API+'/events',{title,type,date:eventDate.toISOString(),location,description:desc,committee:committee||null,rsvp_deadline:deadline?new Date(deadline).toISOString():null,status:'published',created_by:currentUser.id},{headers:hdrs()});
     const nb='【'+typeLabel(type)+'】'+title+' の開催が登録されました。\n\n📅 日時：'+dateStr+'\n'+(location?'📍 場所：'+location+'\n':'')+(committee?'🏛️ 担当委員会：'+committee+'\n':'')+'\n詳細は「会議・事業」メニューよりご確認ください。';
     await axios.post(API+'/notices',{title:'【'+typeLabel(type)+'】'+title+' が登録されました',body:nb,priority:'normal',created_by:currentUser.id},{headers:hdrs()});
     alert('作成しました！'); navigate('events');
