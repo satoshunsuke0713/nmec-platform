@@ -309,10 +309,146 @@ async function renderDashboard() {
       html+='</div>';
     }
     if(evRes.data.length===0&&notRes.data.length===0) html+='<div class="empty">データがまだありません</div>';
+    html+=await renderCalendarWidget();
     el.innerHTML=html;
   } catch(e) { el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
 }
 
+let calendarCurrentDate=new Date();
+let calendarView='month';
+
+async function renderCalendarWidget() {
+  try {
+    const year=calendarCurrentDate.getFullYear();
+    const month=calendarCurrentDate.getMonth();
+    const [evRes,ceRes]=await Promise.all([
+      axios.get(API+'/events?order=date.asc',{headers:hdrs()}),
+      axios.get(API+'/calendar_events?order=date.asc',{headers:hdrs()})
+    ]);
+    const events=evRes.data;
+    const calEvents=ceRes.data;
+
+    if(calendarView==='month') {
+      return renderMonthCalendar(year,month,events,calEvents);
+    } else {
+      return renderWeekCalendar(events,calEvents);
+    }
+  } catch(e) { return ''; }
+}
+
+function renderMonthCalendar(year,month,events,calEvents) {
+  const monthNames=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const firstDay=new Date(year,month,1).getDay();
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const today=new Date();
+
+  let html='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
+  html+='<div style="display:flex;gap:8px;align-items:center">';
+  html+='<button onclick="changeCalendarMonth(-1)" style="background:none;border:1.5px solid var(--gray-mid);border-radius:4px;padding:6px 12px;cursor:pointer;font-size:14px;font-weight:700">←</button>';
+  html+='<div style="font-size:16px;font-weight:800;color:var(--gray-dark)">'+year+'年'+monthNames[month]+'</div>';
+  html+='<button onclick="changeCalendarMonth(1)" style="background:none;border:1.5px solid var(--gray-mid);border-radius:4px;padding:6px 12px;cursor:pointer;font-size:14px;font-weight:700">→</button>';
+  html+='</div>';
+  html+='<div style="display:flex;gap:8px">';
+  html+='<button onclick="switchCalendarView(\'month\')" class="filter-btn '+(calendarView==='month'?'active':'')+'">月</button>';
+  html+='<button onclick="switchCalendarView(\'week\')" class="filter-btn '+(calendarView==='week'?'active':'')+'">週</button>';
+  html+='</div></div>';
+
+  html+='<table style="width:100%;border-collapse:collapse">';
+  html+='<thead><tr>';
+  ['日','月','火','水','木','金','土'].forEach(function(d,i){
+    html+='<th style="text-align:center;padding:6px 2px;font-size:12px;font-weight:700;color:'+(i===0?'#e53e3e':i===6?'#3182ce':'var(--text-mid)')+'">'+d+'</th>';
+  });
+  html+='</tr></thead><tbody>';
+
+  let day=1;
+  for(let w=0;w<6;w++) {
+    if(day>daysInMonth) break;
+    html+='<tr>';
+    for(let d=0;d<7;d++) {
+      if(w===0&&d<firstDay||day>daysInMonth) {
+        html+='<td style="padding:4px 2px;vertical-align:top;height:60px"></td>';
+      } else {
+        const dateStr=year+'-'+String(month+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+        const isToday=today.getFullYear()===year&&today.getMonth()===month&&today.getDate()===day;
+        const dayEvents=events.filter(function(e){return e.date&&e.date.startsWith(dateStr);});
+        const dayCalEvents=calEvents.filter(function(e){return e.date===dateStr;});
+        html+='<td style="padding:2px;vertical-align:top;height:60px;border:1px solid var(--gray-mid);background:'+(isToday?'#fff0f0':'#fff')+'">';
+        html+='<div style="font-size:12px;font-weight:'+(isToday?'800':'600')+';color:'+(d===0?'#e53e3e':d===6?'#3182ce':isToday?'var(--red)':'var(--text)')+';margin-bottom:2px">'+day+'</div>';
+        dayEvents.forEach(function(e){
+          html+='<div onclick="showEventDetail(\''+e.id+'\')" style="font-size:10px;background:var(--red);color:#fff;border-radius:2px;padding:1px 4px;margin-bottom:1px;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+e.title+'</div>';
+        });
+        dayCalEvents.forEach(function(e){
+          html+='<div style="font-size:10px;background:#3182ce;color:#fff;border-radius:2px;padding:1px 4px;margin-bottom:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+e.title+'</div>';
+        });
+        if(['admin','office','director'].includes(currentProfile.role)) {
+          html+='<div onclick="showCalendarEventForm(\''+dateStr+'\')" style="font-size:10px;color:#aaa;cursor:pointer;text-align:center">＋</div>';
+        }
+        html+='</td>';
+        day++;
+      }
+    }
+    html+='</tr>';
+  }
+  html+='</tbody></table></div>';
+  return html;
+}
+
+function renderWeekCalendar(events,calEvents) {
+  const today=new Date();
+  const startOfWeek=new Date(today);
+  startOfWeek.setDate(today.getDate()-today.getDay());
+  const days=[];
+  for(let i=0;i<7;i++) {
+    const d=new Date(startOfWeek);
+    d.setDate(startOfWeek.getDate()+i);
+    days.push(d);
+  }
+  let html='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
+  html+='<div style="font-size:16px;font-weight:800;color:var(--gray-dark)">今週のスケジュール</div>';
+  html+='<div style="display:flex;gap:8px">';
+  html+='<button onclick="switchCalendarView(\'month\')" class="filter-btn '+(calendarView==='month'?'active':'')+'">月</button>';
+  html+='<button onclick="switchCalendarView(\'week\')" class="filter-btn '+(calendarView==='week'?'active':'')+'">週</button>';
+  html+='</div></div>';
+  days.forEach(function(d,i){
+    const dateStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const isToday=d.toDateString()===today.toDateString();
+    const dayEvents=events.filter(function(e){return e.date&&e.date.startsWith(dateStr);});
+    const dayCalEvents=calEvents.filter(function(e){return e.date===dateStr;});
+    if(dayEvents.length===0&&dayCalEvents.length===0&&!isToday) return;
+    html+='<div style="padding:10px 0;border-bottom:1px solid var(--gray)">';
+    html+='<div style="font-size:13px;font-weight:700;color:'+(i===0?'#e53e3e':i===6?'#3182ce':isToday?'var(--red)':'var(--text-mid)')+';margin-bottom:6px">'+['日','月','火','水','木','金','土'][i]+' '+d.getDate()+'日'+(isToday?' 【今日】':'')+'</div>';
+    dayEvents.forEach(function(e){
+      html+='<div onclick="showEventDetail(\''+e.id+'\')" style="font-size:13px;background:var(--red-light);border-left:3px solid var(--red);padding:6px 10px;border-radius:2px;margin-bottom:4px;cursor:pointer">'+e.title+'</div>';
+    });
+    dayCalEvents.forEach(function(e){
+      html+='<div style="font-size:13px;background:#ebf8ff;border-left:3px solid #3182ce;padding:6px 10px;border-radius:2px;margin-bottom:4px">'+e.title+'</div>';
+    });
+    html+='</div>';
+  });
+  html+='</div>';
+  return html;
+}
+
+function changeCalendarMonth(dir) {
+  calendarCurrentDate.setMonth(calendarCurrentDate.getMonth()+dir);
+  renderDashboard();
+}
+
+function switchCalendarView(view) {
+  calendarView=view;
+  renderDashboard();
+}
+
+function showCalendarEventForm(date) {
+  const title=prompt('予定のタイトルを入力してください：');
+  if(!title) return;
+  const note=prompt('メモ（任意）：');
+  axios.post(API+'/calendar_events',{title,date,note:note||null,created_by:currentUser.id},{headers:hdrs()}).then(function(){
+    renderDashboard();
+  }).catch(function(){
+    alert('追加に失敗しました');
+  });
+}
 async function renderEvents() {
   await autoCloseEvents();
   const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
