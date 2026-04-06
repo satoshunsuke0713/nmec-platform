@@ -808,7 +808,6 @@ function memberCardV2(m, userCommittees, chairCommittees, committees, committeeI
 
   return '<div class="card" onclick="showMemberDetail(\''+m.id+'\')" style="cursor:pointer" data-name="'+(m.name||'')+'" data-company="'+(m.company||'')+'" data-committees="'+committeeIds+'" data-position="'+(m.position||'')+'">'
     +'<div class="member-row">'
-    +'<div class="avatar">'+initial+'</div>'
     +'<div class="member-info">'
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">'
     +'<div class="member-name">'+(m.name||'—')+'</div>'
