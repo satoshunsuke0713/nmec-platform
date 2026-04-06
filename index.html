@@ -372,7 +372,7 @@ function renderMonthCalendar(year,month,events,calEvents) {
         const isToday=today.getFullYear()===year&&today.getMonth()===month&&today.getDate()===day;
         const dayEvents=events.filter(function(e){return e.date&&e.date.startsWith(dateStr);});
         const dayCalEvents=calEvents.filter(function(e){return e.date===dateStr;});
-        html+='<td style="padding:2px;vertical-align:top;height:60px;border:1px solid var(--gray-mid);background:'+(isToday?'#fff0f0':'#fff')+'">';
+        html+='<td style="padding:2px;vertical-align:top;height:60px;max-height:60px;overflow:hidden;border:1px solid var(--gray-mid);background:'+(isToday?'#fff0f0':'#fff')+'">';
         html+='<div style="font-size:12px;font-weight:'+(isToday?'800':'600')+';color:'+(d===0?'#e53e3e':d===6?'#3182ce':isToday?'var(--red)':'var(--text)')+';margin-bottom:2px">'+day+'</div>';
         dayEvents.forEach(function(e){
           html+='<div onclick="showEventDetail(\''+e.id+'\')" style="font-size:10px;background:var(--red);color:#fff;border-radius:2px;padding:1px 4px;margin-bottom:1px;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+(e.title.length>6?e.title.substring(0,6)+'…':e.title)+'</div>';
