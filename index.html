@@ -953,23 +953,23 @@ function previewNewNotice() {
   window._noticeFormData={title,body,priority,category,file};
 }
 async function submitNewNotice() {
-  await axios.post(API+'/notices',{title,body,priority,category:category||'general',file_url:fileUrl,created_by:currentUser.id},{headers:hdrs()});
+  const {title,body,priority,category,file:savedFile}=window._noticeFormData||{};
   if(!title) { alert('データが見つかりません'); return; }
-  const btn=document.querySelector('#main-content .submit-btn'); btn.textContent='投稿中...'; btn.disabled=true;
+  const btn=document.querySelector('#main-content .submit-btn');
+  if(btn){btn.textContent='投稿中...';btn.disabled=true;}
   try {
     let fileUrl=null;
     const file=savedFile, fileCat=window._noticeFormData.fileCat||'', fileDisplayName=window._noticeFormData.fileDisplayName||title+'（添付）';
-    if(file) {
-      const ext=file.name.split('.').pop(), filePath='notices/'+Date.now()+'.'+ext;
+    if(file){
+      const ext=file.name.split('.').pop(),filePath='notices/'+Date.now()+'.'+ext;
       await axios.post(SUPABASE_URL+'/storage/v1/object/documents/'+filePath,file,{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+accessToken,'Content-Type':file.type}});
       fileUrl=SUPABASE_URL+'/storage/v1/object/public/documents/'+filePath;
-      if(fileCat) await axios.post(API+'/documents',{name:fileDisplayName||title+'（添付）',file_url:fileUrl,file_size:(file.size/1024).toFixed(0)+'KB',category:fileCat,year:new Date().getFullYear(),uploaded_by:currentUser.id},{headers:hdrs()});
+      if(fileCat) await axios.post(API+'/documents',{name:fileDisplayName,file_url:fileUrl,file_size:(file.size/1024).toFixed(0)+'KB',category:fileCat,year:new Date().getFullYear(),uploaded_by:currentUser.id},{headers:hdrs()});
     }
-    await axios.post(API+'/notices',{title,body,priority,file_url:fileUrl,created_by:currentUser.id},{headers:hdrs()});
+    await axios.post(API+'/notices',{title,body,priority,category:category||'general',file_url:fileUrl,created_by:currentUser.id},{headers:hdrs()});
     alert('投稿しました！'); navigate('notices');
-  } catch(e) { alert('投稿に失敗しました'); btn.textContent='投稿する'; btn.disabled=false; }
+  } catch(e) { alert('投稿に失敗しました'); if(btn){btn.textContent='投稿する';btn.disabled=false;} }
 }
-
 async function showNoticeEditForm(id) {
   const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
   try {
