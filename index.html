@@ -352,14 +352,39 @@ function showEventForm() {
   });
 }
 
-async function submitNewEvent() {
-  const title=document.getElementById('ev-title').value, date=document.getElementById('ev-date').value;
+function previewNewEvent() {
+  const title=document.getElementById('ev-title').value;
+  const date=document.getElementById('ev-date').value;
   if(!title||!date) { alert('タイトルと日時は必須です'); return; }
+  const type=document.getElementById('ev-type').value;
+  const location=document.getElementById('ev-location').value;
+  const committee=document.getElementById('ev-committee').value;
+  const desc=document.getElementById('ev-desc').value;
+  const deadline=document.getElementById('ev-deadline').value;
+  const eventDate=new Date(date);
+  const dateStr=eventDate.getFullYear()+'年'+(eventDate.getMonth()+1)+'月'+eventDate.getDate()+'日 '+eventDate.getHours()+':'+String(eventDate.getMinutes()).padStart(2,'0');
+  const el=document.getElementById('main-content');
+  el.innerHTML='<button class="back-btn" onclick="showEventForm()">← 編集に戻る</button>'
+    +'<div class="card card-accent">'
+    +'<div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px">📋 プレビュー確認</div>'
+    +'<span class="badge '+typeBadge(type)+'">'+typeLabel(type)+'</span>'
+    +'<div class="detail-title">'+title+'</div>'
+    +'<div class="detail-row"><span class="detail-label">日時</span><span class="detail-value">'+dateStr+'</span></div>'
+    +'<div class="detail-row"><span class="detail-label">場所</span><span class="detail-value">'+(location||'未定')+'</span></div>'
+    +(committee?'<div class="detail-row"><span class="detail-label">担当委員会</span><span class="detail-value">'+committee+'</span></div>':'')
+    +(desc?'<div class="detail-row"><span class="detail-label">概要</span><span class="detail-value">'+desc+'</span></div>':'')
+    +(deadline?'<div class="detail-row"><span class="detail-label">出欠締切</span><span class="detail-value" style="color:var(--red);font-weight:700">'+fmtDateShort(deadline)+'</span></div>':'')
+    +'</div>'
+    +'<button class="submit-btn" onclick="submitNewEvent()">この内容で作成する</button>';
+  window._eventFormData={title,type,date,location,committee,desc,deadline};
+}
+async function submitNewEvent() {
+  const {title,type,date,location,committee,desc,deadline}=window._eventFormData||{};
+  if(!title||!date) { alert('データが見つかりません'); return; }
   try {
     const eventDate=new Date(date);
     const dateStr=eventDate.getFullYear()+'年'+(eventDate.getMonth()+1)+'月'+eventDate.getDate()+'日 '+eventDate.getHours()+':'+String(eventDate.getMinutes()).padStart(2,'0');
-    const type=document.getElementById('ev-type').value, location=document.getElementById('ev-location').value, committee=document.getElementById('ev-committee').value;
-    await axios.post(API+'/events',{title,type,date:eventDate.toISOString(),location,description:document.getElementById('ev-desc').value,committee:committee||null,rsvp_deadline:document.getElementById('ev-deadline').value?new Date(document.getElementById('ev-deadline').value).toISOString():null,status:'published',created_by:currentUser.id},{headers:hdrs()});
+    await axios.post(API+'/events',{title,type,date:eventDate.toISOString(),location,description:desc,committee:committee||null,rsvp_deadline:deadline?new Date(deadline).toISOString():null,?new Date(document.getElementById('ev-deadline').value).toISOString():null,status:'published',created_by:currentUser.id},{headers:hdrs()});
     const nb='【'+typeLabel(type)+'】'+title+' の開催が登録されました。\n\n📅 日時：'+dateStr+'\n'+(location?'📍 場所：'+location+'\n':'')+(committee?'🏛️ 担当委員会：'+committee+'\n':'')+'\n詳細は「会議・事業」メニューよりご確認ください。';
     await axios.post(API+'/notices',{title:'【'+typeLabel(type)+'】'+title+' が登録されました',body:nb,priority:'normal',created_by:currentUser.id},{headers:hdrs()});
     alert('作成しました！'); navigate('events');
