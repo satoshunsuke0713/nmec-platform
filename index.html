@@ -995,7 +995,7 @@ async function updateNotice(id) {
     if(fileUrl) upd.file_url=fileUrl;
     await axios.patch(API+'/notices?id=eq.'+id,upd,{headers:Object.assign({},hdrs(),{'Prefer':'return=minimal'})});
     alert('更新しました！'); navigate('notices');
-  } catch(e) { alert('更新に失敗しました'); btn.textContent='更新する'; btn.disabled=false; }
+  } catch(e) { console.error(e); alert('更新に失敗しました: '+e.message); btn.textContent='更新する'; btn.disabled=false; }
 }
 
 async function renderCommittees() {
