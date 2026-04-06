@@ -1023,6 +1023,13 @@ function getCommitteeLeader() {
   const opt=sel.options[sel.selectedIndex];
   return opt?opt.getAttribute('data-leader')||'':'';
 }
+  function addAttachmentInput() {
+  const container=document.getElementById('pr-attachment-inputs');
+  const div=document.createElement('div');
+  div.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px';
+  div.innerHTML='<input type="file" accept=".pdf,.jpg,.jpeg,.png" style="flex:1;padding:6px 0;font-size:14px" onchange="addAttachmentFiles(this.files,this.parentNode)"><button onclick="this.parentNode.remove()" style="padding:4px 8px;background:none;border:1px solid #ccc;border-radius:2px;font-size:12px;cursor:pointer;color:#999">削除</button>';
+  container.appendChild(div);
+}
   function addAttachmentFiles(files) {
   if(!window._proposalData) window._proposalData={income:[],expense:[],attachments:[]};
   const list=document.getElementById('pr-attachment-list');
