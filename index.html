@@ -372,8 +372,8 @@ function renderMonthCalendar(year,month,events,calEvents) {
         const isToday=today.getFullYear()===year&&today.getMonth()===month&&today.getDate()===day;
         const dayEvents=events.filter(function(e){return e.date&&e.date.startsWith(dateStr);});
         const dayCalEvents=calEvents.filter(function(e){return e.date===dateStr;});
-        html+='<td style="padding:0;border:1px solid var(--gray-mid);background:'+(isToday?'#fff0f0':'#fff')+'">';
-　　　　 html+='<div style="height:60px;overflow:hidden;padding:2px;">';
+        html+='<td style="padding:0;height:80px;border:1px solid var(--gray-mid);background:'+(isToday?'#fff0f0':'#fff')+'">';
+　　　　 html+='<div style="height:80px;overflow:hidden;padding:2px;">';
         html+='<div style="font-size:12px;font-weight:'+(isToday?'800':'600')+';color:'+(d===0?'#e53e3e':d===6?'#3182ce':isToday?'var(--red)':'var(--text)')+';margin-bottom:2px">'+day+'</div>';
         dayEvents.forEach(function(e){
       const colors={sanyaku:'#f59e0b',rijikai:'#CC0000',reikai:'#1a7a4a',iinkai:'#1a3a6a',jigyou:'#7c3aed',other:'#0d9488'};
