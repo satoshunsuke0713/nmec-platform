@@ -375,10 +375,10 @@ function renderMonthCalendar(year,month,events,calEvents) {
         html+='<td style="padding:2px;vertical-align:top;height:60px;border:1px solid var(--gray-mid);background:'+(isToday?'#fff0f0':'#fff')+'">';
         html+='<div style="font-size:12px;font-weight:'+(isToday?'800':'600')+';color:'+(d===0?'#e53e3e':d===6?'#3182ce':isToday?'var(--red)':'var(--text)')+';margin-bottom:2px">'+day+'</div>';
         dayEvents.forEach(function(e){
-          html+='<div onclick="showEventDetail(\''+e.id+'\')" style="font-size:10px;background:var(--red);color:#fff;border-radius:2px;padding:1px 4px;margin-bottom:1px;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+e.title+'</div>';
+          html+='<div onclick="showEventDetail(\''+e.id+'\')" style="font-size:10px;background:var(--red);color:#fff;border-radius:2px;padding:1px 4px;margin-bottom:1px;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+(e.title.length>6?e.title.substring(0,6)+'…':e.title)+'</div>';
         });
         dayCalEvents.forEach(function(e){
-          html+='<div style="font-size:10px;background:#3182ce;color:#fff;border-radius:2px;padding:1px 4px;margin-bottom:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+e.title+'</div>';
+          html+='<div style="font-size:10px;background:#3182ce;color:#fff;border-radius:2px;padding:1px 4px;margin-bottom:1px;'+(['admin','office','director'].includes(currentProfile.role)?'cursor:pointer':''')+';overflow:hidden;white-space:nowrap;text-overflow:ellipsis"'+(['admin','office','director'].includes(currentProfile.role)?' onclick="deleteCalendarEvent(\''+e.id+'\')"':'')+'>'+( e.title.length>6?e.title.substring(0,6)+'…':e.title)+'</div>';
         });
         if(['admin','office','director'].includes(currentProfile.role)) {
           html+='<div onclick="showCalendarEventForm(\''+dateStr+'\')" style="font-size:10px;color:#aaa;cursor:pointer;text-align:center">＋</div>';
@@ -449,6 +449,13 @@ function showCalendarEventForm(date) {
     alert('追加に失敗しました');
   });
 }
+ async function deleteCalendarEvent(id) {
+  if(!confirm('この予定を削除しますか？')) return;
+  try {
+    await axios.delete(API+'/calendar_events?id=eq.'+id,{headers:hdrs()});
+    renderDashboard();
+  } catch(e) { alert('削除に失敗しました'); }
+} 
 async function renderEvents() {
   await autoCloseEvents();
   const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
