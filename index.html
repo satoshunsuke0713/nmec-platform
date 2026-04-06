@@ -353,7 +353,7 @@ function renderMonthCalendar(year,month,events,calEvents) {
   html+='<button onclick="switchCalendarView(\'week\')" class="filter-btn '+(calendarView==='week'?'active':'')+'">週</button>';
   html+='</div></div>';
 
-  html+='<table style="width:100%;border-collapse:collapse">';
+  html+='<table style="width:100%;border-collapse:collapse;table-layout:fixed">';
   html+='<thead><tr>';
   ['日','月','火','水','木','金','土'].forEach(function(d,i){
     html+='<th style="text-align:center;padding:6px 2px;font-size:12px;font-weight:700;color:'+(i===0?'#e53e3e':i===6?'#3182ce':'var(--text-mid)')+'">'+d+'</th>';
