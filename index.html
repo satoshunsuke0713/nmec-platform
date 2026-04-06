@@ -1092,8 +1092,9 @@ async function previewProposal(id) {
   const committeeLeader=isJimukyoku?'山木専務':getCommitteeLeader();
   const incomeTotal=(window._proposalData.income||[]).reduce(function(s,r){return s+(parseInt(r.amount)||0);},0);
   const expenseTotal=(window._proposalData.expense||[]).reduce(function(s,r){return s+(parseInt(r.amount)||0);},0);
+  window._proposalPreviewData={isJimukyoku,committee,title,purpose,schedule,venue,speaker,content,target,fee,committeeLeader};
   const el=document.getElementById('main-content');
-  el.innerHTML='<button class="back-btn" onclick="showProposalForm(\''+(id||'null')+'\')" >← 編集に戻る</button>'
+    el.innerHTML='<button class="back-btn" onclick="showProposalForm(\''+(id||'null')+'\')" >← 編集に戻る</button>'
     +'<div class="card card-accent">'
     +'<div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px">📋 プレビュー確認</div>'
     +'<div style="font-size:11px;color:var(--text-mid);margin-bottom:8px">担当：'+committee+'　委員長：'+committeeLeader+'</div>'
