@@ -1127,7 +1127,6 @@ async function saveProposal(id,status) {
   const isJimukyoku=document.querySelector('input[name="pr-type"]')?document.querySelector('input[name="pr-type"]:checked').value==='jimukyoku':(window._proposalPreviewData?window._proposalPreviewData.isJimukyoku:false);
   const committee=isJimukyoku?'事務局':(document.getElementById('pr-committee')?document.getElementById('pr-committee').value:(window._proposalPreviewData?window._proposalPreviewData.committee:''));
   const data={
-    const data={
     title:document.getElementById('pr-title')?document.getElementById('pr-title').value:pv.title||'',
     committee:committee,
     committee_leader:isJimukyoku?'山木専務':(document.getElementById('pr-committee')?getCommitteeLeader():pv.committeeLeader||''),
