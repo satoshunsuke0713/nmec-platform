@@ -1009,6 +1009,7 @@ async function removeMember(memberId,committeeId,uj) {
       +'<button onclick="previewProposal(\''+( id||'')+'\')" class="submit-btn">プレビューを確認する</button>'
       +'</div>';
 
+    window._proposalPreviewData={isJimukyoku,committee,title,purpose,schedule,venue,speaker,content,target,fee,committeeLeader};
     window._proposalData = {
       income: JSON.parse(JSON.stringify(p.budget_income||[{item:'',amount:0}])),
       expense: JSON.parse(JSON.stringify(p.budget_expense||[{item:'',amount:0}])),
@@ -1078,8 +1079,9 @@ function calcBudgetTotals() {
 }
 
 async function previewProposal(id) {
-  const isJimukyoku=document.querySelector('input[name="pr-type"]:checked').value==='jimukyoku';
-  const committee=isJimukyoku?'事務局':document.getElementById('pr-committee').value;
+  const pv=window._proposalPreviewData||{};
+  const isJimukyoku=document.querySelector('input[name="pr-type"]')?document.querySelector('input[name="pr-type"]:checked').value==='jimukyoku':pv.isJimukyoku||false;
+  const committee=isJimukyoku?'事務局':(document.getElementById('pr-committee')?document.getElementById('pr-committee').value:pv.committee||'');
   const title=document.getElementById('pr-title').value;
   const purpose=document.getElementById('pr-purpose').value;
   const schedule=document.getElementById('pr-schedule').value;
@@ -1122,20 +1124,21 @@ async function previewProposal(id) {
     +'</div>';
 }
 async function saveProposal(id,status) {
-  const isJimukyoku=document.querySelector('input[name="pr-type"]:checked').value==='jimukyoku';
-  const committee=isJimukyoku?'事務局':document.getElementById('pr-committee').value;
+  const isJimukyoku=document.querySelector('input[name="pr-type"]')?document.querySelector('input[name="pr-type"]:checked').value==='jimukyoku':(window._proposalPreviewData?window._proposalPreviewData.isJimukyoku:false);
+  const committee=isJimukyoku?'事務局':(document.getElementById('pr-committee')?document.getElementById('pr-committee').value:(window._proposalPreviewData?window._proposalPreviewData.committee:''));
   const data={
-    title:document.getElementById('pr-title').value,
+    const data={
+    title:document.getElementById('pr-title')?document.getElementById('pr-title').value:pv.title||'',
     committee:committee,
-    committee_leader:isJimukyoku?'山木専務':getCommitteeLeader(),
+    committee_leader:isJimukyoku?'山木専務':(document.getElementById('pr-committee')?getCommitteeLeader():pv.committeeLeader||''),
     is_jimukyoku:isJimukyoku,
-    purpose:document.getElementById('pr-purpose').value,
-    schedule:document.getElementById('pr-schedule').value,
-    venue:document.getElementById('pr-venue').value,
-    speaker:document.getElementById('pr-speaker').value,
-    content:document.getElementById('pr-content').value,
-    target:document.getElementById('pr-target').value,
-    fee:document.getElementById('pr-fee').value,
+    purpose:document.getElementById('pr-purpose')?document.getElementById('pr-purpose').value:pv.purpose||'',
+    schedule:document.getElementById('pr-schedule')?document.getElementById('pr-schedule').value:pv.schedule||'',
+    venue:document.getElementById('pr-venue')?document.getElementById('pr-venue').value:pv.venue||'',
+    speaker:document.getElementById('pr-speaker')?document.getElementById('pr-speaker').value:pv.speaker||'',
+    content:document.getElementById('pr-content')?document.getElementById('pr-content').value:pv.content||'',
+    target:document.getElementById('pr-target')?document.getElementById('pr-target').value:pv.target||'',
+    fee:document.getElementById('pr-fee')?document.getElementById('pr-fee').value:pv.fee||'',
     budget_income:window._proposalData.income,
     budget_expense:window._proposalData.expense,
     attachments:window._proposalData.attachments,
