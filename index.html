@@ -1005,7 +1005,7 @@ async function removeMember(memberId,committeeId,uj) {
       +'</div>'
       +'<div style="display:flex;gap:12px;margin-top:8px">'
       +'<button onclick="saveProposal(\''+( id||'')+'\',\'draft\')" class="submit-btn-outline">下書き保存</button>'
-      +'<button onclick="saveProposal(\''+( id||'')+'\',\'final\')" class="submit-btn">完成・保存</button>'
+      +'<button onclick="previewProposal(\''+( id||'')+'\')" class="submit-btn">プレビューを確認する</button>'
       +'</div>';
 
     window._proposalData = {
@@ -1056,6 +1056,50 @@ function calcBudgetTotals() {
   if(et) et.textContent=expenseTotal.toLocaleString();
 }
 
+async function previewProposal(id) {
+  const isJimukyoku=document.querySelector('input[name="pr-type"]:checked').value==='jimukyoku';
+  const committee=isJimukyoku?'事務局':document.getElementById('pr-committee').value;
+  const title=document.getElementById('pr-title').value;
+  const purpose=document.getElementById('pr-purpose').value;
+  const schedule=document.getElementById('pr-schedule').value;
+  const venue=document.getElementById('pr-venue').value;
+  const speaker=document.getElementById('pr-speaker').value;
+  const content=document.getElementById('pr-content').value;
+  const target=document.getElementById('pr-target').value;
+  const fee=document.getElementById('pr-fee').value;
+  const committeeLeader=isJimukyoku?'山木専務':getCommitteeLeader();
+  const incomeTotal=(window._proposalData.income||[]).reduce(function(s,r){return s+(parseInt(r.amount)||0);},0);
+  const expenseTotal=(window._proposalData.expense||[]).reduce(function(s,r){return s+(parseInt(r.amount)||0);},0);
+  const el=document.getElementById('main-content');
+  el.innerHTML='<button class="back-btn" onclick="showProposalForm(\''+(id||'null')+'\')" >← 編集に戻る</button>'
+    +'<div class="card card-accent">'
+    +'<div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px">📋 プレビュー確認</div>'
+    +'<div style="font-size:11px;color:var(--text-mid);margin-bottom:8px">担当：'+committee+'　委員長：'+committeeLeader+'</div>'
+    +'<div class="detail-title">'+title+'</div>'
+    +(purpose?'<div class="detail-row"><span class="detail-label">目的</span><span class="detail-value" style="white-space:pre-line">'+purpose+'</span></div>':'')
+    +(schedule?'<div class="detail-row"><span class="detail-label">日時</span><span class="detail-value" style="white-space:pre-line">'+schedule+'</span></div>':'')
+    +(venue?'<div class="detail-row"><span class="detail-label">会場</span><span class="detail-value" style="white-space:pre-line">'+venue+'</span></div>':'')
+    +(speaker?'<div class="detail-row"><span class="detail-label">講師</span><span class="detail-value" style="white-space:pre-line">'+speaker+'</span></div>':'')
+    +(content?'<div class="detail-row"><span class="detail-label">内容</span><span class="detail-value" style="white-space:pre-line">'+content+'</span></div>':'')
+    +(target?'<div class="detail-row"><span class="detail-label">対象</span><span class="detail-value" style="white-space:pre-line">'+target+'</span></div>':'')
+    +(fee?'<div class="detail-row"><span class="detail-label">参加費</span><span class="detail-value">'+fee+'</span></div>':'')
+    +'</div>'
+    +'<div class="card"><div class="section-title">💰 予算書</div>'
+    +'<div style="margin-bottom:8px;font-size:13px;font-weight:700">収入の部</div>'
+    +'<table style="width:100%;border-collapse:collapse;margin-bottom:16px">'
+    +(window._proposalData.income||[]).map(function(r){return '<tr><td style="padding:6px;border:1px solid var(--gray-mid);font-size:14px">'+r.item+'</td><td style="padding:6px;border:1px solid var(--gray-mid);font-size:14px;text-align:right">'+parseInt(r.amount||0).toLocaleString()+'円</td><td style="padding:6px;border:1px solid var(--gray-mid);font-size:13px;color:var(--text-mid)">'+(r.note||'')+'</td></tr>';}).join('')
+    +'<tr><td style="padding:6px;font-weight:700;border-top:2px solid var(--gray-dark)">収入計</td><td style="padding:6px;text-align:right;font-weight:800;border-top:2px solid var(--gray-dark)">'+incomeTotal.toLocaleString()+'円</td><td style="border-top:2px solid var(--gray-dark)"></td></tr>'
+    +'</table>'
+    +'<div style="margin-bottom:8px;font-size:13px;font-weight:700">支出の部</div>'
+    +'<table style="width:100%;border-collapse:collapse">'
+    +(window._proposalData.expense||[]).map(function(r){return '<tr><td style="padding:6px;border:1px solid var(--gray-mid);font-size:14px">'+r.item+'</td><td style="padding:6px;border:1px solid var(--gray-mid);font-size:14px;text-align:right">'+parseInt(r.amount||0).toLocaleString()+'円</td><td style="padding:6px;border:1px solid var(--gray-mid);font-size:13px;color:var(--text-mid)">'+(r.note||'')+'</td></tr>';}).join('')
+    +'<tr><td style="padding:6px;font-weight:700;border-top:2px solid var(--gray-dark)">支出計</td><td style="padding:6px;text-align:right;font-weight:800;border-top:2px solid var(--gray-dark)">'+expenseTotal.toLocaleString()+'円</td><td style="border-top:2px solid var(--gray-dark)"></td></tr>'
+    +'</table></div>'
+    +'<div style="display:flex;gap:12px;margin-top:8px">'
+    +'<button onclick="saveProposal(\''+(id||'')+'\',\'draft\')" class="submit-btn-outline">下書き保存</button>'
+    +'<button onclick="saveProposal(\''+(id||'')+'\',\'final\')" class="submit-btn">完成・保存</button>'
+    +'</div>';
+}
 async function saveProposal(id,status) {
   const isJimukyoku=document.querySelector('input[name="pr-type"]:checked').value==='jimukyoku';
   const committee=isJimukyoku?'事務局':document.getElementById('pr-committee').value;
