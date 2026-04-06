@@ -1224,7 +1224,9 @@ ${(p.budget_expense||[]).map(function(r){return '<tr><td>'+r.item+'</td><td styl
 </tbody><tfoot><tr class="total-row"><td>支出計</td><td style="text-align:right">${expenseTotal.toLocaleString()}</td></tr></tfoot></table>
 </div>
 </body></html>`;
-  const blob=new Blob([htmlContent],{type:'text/html;charset=utf-8'});
+  const printScript='<script>window.onload=function(){window.print();}<\/script>';
+  const finalHtml=htmlContent.replace('</body>','<style>@page{size:A4 portrait;}</style>'+printScript+'</body>');
+  const blob=new Blob([finalHtml],{type:'text/html;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const win=window.open(url,'_blank');
   setTimeout(function(){URL.revokeObjectURL(url);},10000);
