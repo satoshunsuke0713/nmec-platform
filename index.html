@@ -1225,7 +1225,7 @@ ${(p.budget_expense||[]).map(function(r){return '<tr><td>'+r.item+'</td><td styl
 </tbody><tfoot><tr class="total-row"><td>支出計</td><td style="text-align:right">${expenseTotal.toLocaleString()}</td></tr></tfoot></table>
 </div>
 </body></html>`;
-  console.log('PDF HTML written';
+  console.log('PDF HTML written');
   document.body.appendChild(printDiv);
   const style=document.createElement('style');
   style.innerHTML='@media screen { #print-area { display:none; } } @media print { body > *:not(#print-area) { display:none; } #print-area { display:block; } }';
