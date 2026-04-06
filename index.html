@@ -898,7 +898,9 @@ async function showMemberDetail(id) {
 
 function drow(label,value) { return '<div class="detail-row"><span class="detail-label">'+label+'</span><span class="detail-value">'+value+'</span></div>'; }
 
-async function renderNotices() {
+function categoryLabel(c){return{general:'一般',deadline:'期限あり',meeting:'会議関連',important:'重要連絡'}[c]||'一般';}
+function categoryBadge(c){return{general:'badge-gray',deadline:'badge-orange',meeting:'badge-blue',important:'badge-red'}[c]||'badge-gray';}
+  async function renderNotices() {
   const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
   try {
     const res=await axios.get(API+'/notices?order=created_at.desc',{headers:hdrs()});
@@ -907,7 +909,7 @@ async function renderNotices() {
     if(res.data.length===0) html+='<div class="empty">お知らせがまだありません</div>';
     res.data.forEach(function(n){
       const canEdit=['admin','office'].includes(currentProfile.role);
-      html+='<div class="card '+(n.priority==='important'?'card-accent':'')+'"><div style="display:flex;justify-content:space-between;margin-bottom:8px;align-items:center"><div style="display:flex;gap:8px">'+(n.priority==='important'?'<span class="badge badge-red">重要</span>':'<span class="badge badge-gray">お知らせ</span>')+'</div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:var(--text-mid)">'+fmtDateShort(n.created_at)+'</span>'+(canEdit?'<button onclick="showNoticeEditForm(\''+n.id+'\')" style="background:none;border:1px solid var(--gray-mid);border-radius:2px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--text-mid)">編集</button><button onclick="deleteNotice(\''+n.id+'\')" style="background:none;border:1px solid #ccc;border-radius:2px;padding:3px 8px;font-size:11px;cursor:pointer;color:#999">削除</button>':'')+'</div></div><div style="font-weight:'+(n.priority==='important'?800:700)+';font-size:16px;color:var(--text);cursor:pointer" onclick="showNoticeDetail(\''+n.id+'\')">'+n.title+'</div></div>';
+      html+='<div class="card '+(n.priority==='important'?'card-accent':'')+'"><div style="display:flex;justify-content:space-between;margin-bottom:8px;align-items:center"><div style="display:flex;gap:8px">'+(n.priority==='important'?'<span class="badge badge-red">重要</span>':'')+' <span class="badge '+categoryBadge(n.category)+'">'+categoryLabel(n.category)+'</span>'+'</div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:var(--text-mid)">'+fmtDateShort(n.created_at)+'</span>'+(canEdit?'<button onclick="showNoticeEditForm(\''+n.id+'\')" style="background:none;border:1px solid var(--gray-mid);border-radius:2px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--text-mid)">編集</button><button onclick="deleteNotice(\''+n.id+'\')" style="background:none;border:1px solid #ccc;border-radius:2px;padding:3px 8px;font-size:11px;cursor:pointer;color:#999">削除</button>':'')+'</div></div><div style="font-weight:'+(n.priority==='important'?800:700)+';font-size:16px;color:var(--text);cursor:pointer" onclick="showNoticeDetail(\''+n.id+'\')">'+n.title+'</div></div>';
     });
     el.innerHTML=html;
   } catch(e) { el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
@@ -917,7 +919,7 @@ async function showNoticeDetail(id) {
   const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
   try {
     const res=await axios.get(API+'/notices?id=eq.'+id,{headers:hdrs()}); const n=res.data[0];
-    el.innerHTML='<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">'+(n.priority==='important'?'<span class="badge badge-red">重要</span>':'<span class="badge badge-gray">お知らせ</span>')+'<span style="font-size:13px;color:var(--text-mid)">'+fmtDateShort(n.created_at)+'</span></div><div style="font-size:20px;font-weight:800;color:var(--gray-dark);margin-bottom:20px;line-height:1.4">'+n.title+'</div><div style="font-size:15px;color:var(--text);line-height:1.9;white-space:pre-line">'+(n.body||'').replace('「会議・事業」メニューよりご確認ください。','<span onclick="navigate(\'events\')" style="color:var(--red);font-weight:700;text-decoration:underline;cursor:pointer">「会議・事業」メニューよりご確認ください。</span>')+'</div>'+(n.file_url?'<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray)"><a href="'+n.file_url+'" target="_blank" style="display:flex;align-items:center;gap:8px;color:var(--red);font-weight:700;font-size:14px;text-decoration:none">📎 '+decodeURIComponent(n.file_url.split('/').pop())+'</a></div>':'')+'</div>';
+    el.innerHTML='<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">'+(n.priority==='important'?'<span class="badge badge-red">重要</span>':'')+' <span class="badge '+categoryBadge(n.category)+'">'+categoryLabel(n.category)+'</span>'+'<span style="font-size:13px;color:var(--text-mid)">'+fmtDateShort(n.created_at)+'</span></div><div style="font-size:20px;font-weight:800;color:var(--gray-dark);margin-bottom:20px;line-height:1.4">'+n.title+'</div><div style="font-size:15px;color:var(--text);line-height:1.9;white-space:pre-line">'+(n.body||'').replace('「会議・事業」メニューよりご確認ください。','<span onclick="navigate(\'events\')" style="color:var(--red);font-weight:700;text-decoration:underline;cursor:pointer">「会議・事業」メニューよりご確認ください。</span>')+'</div>'+(n.file_url?'<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray)"><a href="'+n.file_url+'" target="_blank" style="display:flex;align-items:center;gap:8px;color:var(--red);font-weight:700;font-size:14px;text-decoration:none">📎 '+decodeURIComponent(n.file_url.split('/').pop())+'</a></div>':'')+'</div>';
   } catch(e) { el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
 }
 
@@ -928,7 +930,7 @@ async function deleteNotice(id) {
 
 function showNoticeForm() {
   const el=document.getElementById('main-content');
-  el.innerHTML='<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">🔔 お知らせを投稿</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="no-title" placeholder="タイトルを入力"></div><div class="form-group-inline"><label>本文</label><textarea id="no-body" placeholder="内容を入力" style="min-height:140px"></textarea></div><div class="form-group-inline"><label>優先度</label><select id="no-priority"><option value="normal">通常</option><option value="important">重要</option></select></div><div class="form-group-inline"><label>添付ファイル（任意）</label><input type="text" id="no-file-name" placeholder="ファイルの表示名（例：R8年度総会資料）" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><select id="no-file-category" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><option value="">カテゴリを選択...</option><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select><input type="file" id="no-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div><button class="submit-btn" onclick="previewNewNotice()">プレビューを確認する</button></div>';
+  el.innerHTML='<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">🔔 お知らせを投稿</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="no-title" placeholder="タイトルを入力"></div><div class="form-group-inline"><label>本文</label><textarea id="no-body" placeholder="内容を入力" style="min-height:140px"></textarea></div><div class="form-group-inline"><label>優先度</label><select id="no-priority"><option value="normal">通常</option><option value="important">重要</option></select></div><div class="form-group-inline"><label>種類</label><select id="no-category"><option value="general">一般</option><option value="deadline">期限あり</option><option value="meeting">会議関連</option><option value="important">重要連絡</option></select></div><div class="form-group-inline"><label>添付ファイル（任意）</label><input type="text" id="no-file-name" placeholder="ファイルの表示名（例：R8年度総会資料）" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><select id="no-file-category" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><option value="">カテゴリを選択...</option><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select><input type="file" id="no-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div><button class="submit-btn" onclick="previewNewNotice()">プレビューを確認する</button></div>';
 }
 
 function previewNewNotice() {
@@ -936,6 +938,7 @@ function previewNewNotice() {
   if(!title) { alert('タイトルは必須です'); return; }
   const body=document.getElementById('no-body').value;
   const priority=document.getElementById('no-priority').value;
+  const category=document.getElementById('no-category')?document.getElementById('no-category').value:'general';
   const file=document.getElementById('no-file').files[0];
   const el=document.getElementById('main-content');
   el.innerHTML='<button class="back-btn" onclick="showNoticeForm()">← 編集に戻る</button>'
@@ -947,10 +950,10 @@ function previewNewNotice() {
     +(file?'<div style="margin-top:12px;font-size:13px;color:var(--text-mid)">📎 '+file.name+'</div>':'')
     +'</div>'
     +'<button class="submit-btn" onclick="submitNewNotice()">この内容で投稿する</button>';
-  window._noticeFormData={title,body,priority,file};
+  window._noticeFormData={title,body,priority,category,file};
 }
 async function submitNewNotice() {
-  const {title,body,priority,file:savedFile}=window._noticeFormData||{};
+  await axios.post(API+'/notices',{title,body,priority,category:category||'general',file_url:fileUrl,created_by:currentUser.id},{headers:hdrs()});
   if(!title) { alert('データが見つかりません'); return; }
   const btn=document.querySelector('#main-content .submit-btn'); btn.textContent='投稿中...'; btn.disabled=true;
   try {
