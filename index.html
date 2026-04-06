@@ -1009,8 +1009,7 @@ async function removeMember(memberId,committeeId,uj) {
       +'<button onclick="previewProposal(\''+( id||'')+'\')" class="submit-btn">プレビューを確認する</button>'
       +'</div>';
 
-    window._proposalPreviewData={isJimukyoku,committee,title,purpose,schedule,venue,speaker,content,target,fee,committeeLeader};
-    window._proposalData = {
+      window._proposalData = {
       income: JSON.parse(JSON.stringify(p.budget_income||[{item:'',amount:0}])),
       expense: JSON.parse(JSON.stringify(p.budget_expense||[{item:'',amount:0}])),
       attachments: JSON.parse(JSON.stringify(p.attachments||[]))
