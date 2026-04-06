@@ -375,11 +375,17 @@ function renderMonthCalendar(year,month,events,calEvents) {
         html+='<td style="padding:0;height:80px;border:1px solid var(--gray-mid);background:'+(isToday?'#fff0f0':'#fff')+'">';
 　　　　 html+='<div style="height:80px;overflow:hidden;padding:2px;">';
         html+='<div style="font-size:12px;font-weight:'+(isToday?'800':'600')+';color:'+(d===0?'#e53e3e':d===6?'#3182ce':isToday?'var(--red)':'var(--text)')+';margin-bottom:2px">'+day+'</div>';
-        dayEvents.forEach(function(e){
-      const colors={sanyaku:'#f59e0b',rijikai:'#CC0000',reikai:'#1a7a4a',iinkai:'#1a3a6a',jigyou:'#7c3aed',other:'#0d9488'};
-      const bg=colors[e.type]||'#CC0000';
-      html+='<div onclick="showEventDetail(\''+e.id+'\')" style="font-size:13px;background:'+bg+';color:#fff;border-radius:2px;padding:6px 10px;margin-bottom:4px;cursor:pointer">'+e.title+'</div>';
+        const colors={sanyaku:'#f59e0b',rijikai:'#CC0000',reikai:'#1a7a4a',iinkai:'#1a3a6a',jigyou:'#7c3aed',other:'#0d9488'};
+    const allDayItems=dayEvents.concat(dayCalEvents.map(function(e){return {id:e.id,title:e.title,type:'cal',note:e.note};}));
+    const maxShow=2;
+    allDayItems.slice(0,maxShow).forEach(function(e){
+      const bg=e.type==='cal'?'#3182ce':(colors[e.type]||'#CC0000');
+      const onclick=e.type==='cal'?(['admin','office','director'].includes(currentProfile.role)?' onclick="deleteCalendarEvent(\''+e.id+'\')"':''):'onclick="showEventDetail(\''+e.id+'\')"';
+      html+='<div '+onclick+' title="'+e.title+'" style="font-size:10px;background:'+bg+';color:#fff;border-radius:2px;padding:1px 4px;margin-bottom:1px;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+(e.title.length>6?e.title.substring(0,6)+'…':e.title)+'</div>';
     });
+    if(allDayItems.length>maxShow){
+      html+='<div style="font-size:10px;color:var(--text-mid);padding:1px 4px">+'+( allDayItems.length-maxShow)+'件</div>';
+    }
         if(['admin','office','director'].includes(currentProfile.role)) {
           html+='<div onclick="showCalendarEventForm(\''+dateStr+'\')" style="font-size:10px;color:#aaa;cursor:pointer;text-align:center">＋</div>';
         }
@@ -421,9 +427,6 @@ function renderWeekCalendar(events,calEvents) {
       const colors={sanyaku:'#f59e0b',rijikai:'#CC0000',reikai:'#1a7a4a',iinkai:'#1a3a6a',jigyou:'#7c3aed',other:'#0d9488'};
       const bg=colors[e.type]||'#CC0000';
       html+='<div onclick="showEventDetail(\''+e.id+'\')" style="font-size:13px;background:'+bg+';color:#fff;border-radius:2px;padding:6px 10px;margin-bottom:4px;cursor:pointer">'+e.title+'</div>';
-    });
-    dayCalEvents.forEach(function(e){
-      html+='<div style="font-size:13px;background:#ebf8ff;border-left:3px solid #3182ce;padding:6px 10px;border-radius:2px;margin-bottom:4px">'+e.title+'</div>';
     });
     html+='</div>';
   });
