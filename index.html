@@ -144,6 +144,7 @@ body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; bac
       <div class="form-group"><label>会社名</label><input type="text" id="signup-company" placeholder="株式会社〇〇"></div>
       <div class="form-group"><label>メールアドレス</label><input type="email" id="signup-email" placeholder="example@email.com"></div>
       <div class="form-group"><label>パスワード</label><input type="password" id="signup-password" placeholder="8文字以上"></div>
+      <div class="form-group"><label>パスワード（確認）</label><input type="password" id="signup-password-confirm" placeholder="もう一度入力"></div>
       <button class="btn-primary" onclick="signup()">新規登録</button>
       <div class="auth-switch">すでにアカウントをお持ちの方は <a onclick="toggleForm('login')">ログイン</a></div>
     </div>
@@ -230,7 +231,9 @@ async function login() {
 
 async function signup() {
   const name=document.getElementById('signup-name').value, company=document.getElementById('signup-company').value, email=document.getElementById('signup-email').value, pw=document.getElementById('signup-password').value;
+  const pwConfirm=document.getElementById('signup-password-confirm').value;
   if (!name||!email||!pw) { showError('必須項目を入力してください'); return; }
+  if (pw!==pwConfirm) { showError('パスワードが一致しません'); return; }
   try {
     const res = await axios.post(AUTH+'/signup', {email,password:pw}, {headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY}});
     accessToken=res.data.access_token; currentUser=res.data.user;
