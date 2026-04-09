@@ -834,7 +834,11 @@ function filterMembersByPosition(position, btn) {
   document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active');}); btn.classList.add('active');
   document.querySelectorAll('#members-list .card').forEach(function(c){
     if(position==='all') { c.style.display='block'; return; }
-    c.style.display=(c.dataset.position||'')=== position?'block':'none';
+    if(position==='専務・事務局長') {
+      c.style.display=(c.dataset.position==='専務理事'||c.dataset.position==='事務局長')?'block':'none';
+    } else {
+      c.style.display=(c.dataset.position||'')=== position?'block':'none';
+    }
   });
 }
 function filterMembersByCommittee(committeeId, btn) {
