@@ -760,7 +760,7 @@ async function renderMembers() {
 
     // フィルターボタン（委員会別）
     let html='<input class="search-input" placeholder="🔍 名前・会社名で検索..." oninput="filterMembers(this.value)">';
-    html+='<div class="filter-btns"><button class="filter-btn active" onclick="filterMembersByPosition(\'all\',this)">すべて</button><button class="filter-btn" onclick="filterMembersByPosition(\'理事長\',this)">理事長</button><button class="filter-btn" onclick="filterMembersByPosition(\'副理事長\',this)">副理事長</button><button class="filter-btn" onclick="filterMembersByPosition(\'専務理事\',this)">専務理事</button><button class="filter-btn" onclick="filterMembersByPosition(\'監事\',this)">監事</button></div>';
+    html+='<div class="filter-btns"><button class="filter-btn active" onclick="filterMembersByPosition(\'all\',this)">すべて</button><button class="filter-btn" onclick="filterMembersByPosition(\'理事長\',this)">理事長</button><button class="filter-btn" onclick="filterMembersByPosition(\'副理事長\',this)">副理事長</button><button class="filter-btn" onclick="filterMembersByPosition(\'専務・事務局長\',this)">専務・事務局長</button><button class="filter-btn" onclick="filterMembersByPosition(\'監事\',this)">監事</button></div>';
     html+='<div class="filter-btns"><button class="filter-btn active" onclick="filterMembersByCommittee(\'all\',this)">すべて</button>';
     committees.forEach(function(c){ html+='<button class="filter-btn" onclick="filterMembersByCommittee(\''+c.id+'\',this)">'+c.name+'</button>'; });
     html+='</div>';
