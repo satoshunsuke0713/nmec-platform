@@ -814,7 +814,7 @@ function memberCardV2(m, userCommittees, chairCommittees, committees, committeeI
     +'<div class="member-info">'
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">'
     +'<div class="member-name">'+(m.name||'—')+'</div>'
-    +(m.position?'<span class="badge badge-gray">'+m.position+'</span>':'')
+    +(m.position?'<span class="badge '+(m.position==='理事長'?'badge-red':m.position==='副理事長'?'badge-orange':m.position==='専務理事'||m.position==='事務局長'?'badge-blue':m.position==='委員長'?'badge-green':m.position==='副委員長'?'badge-teal':m.position==='監事'?'badge-purple':'badge-gray')+'">'+m.position+'</span>':'')
     +'</div>'
     +'<div class="member-sub" style="margin-top:4px">'+(m.company||'')+'</div>'
     +(committeeTags?'<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">'+committeeTags+'</div>':'')
