@@ -69,7 +69,7 @@ body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; bac
 .badge-gray { background: var(--gray-mid); color: var(--text-mid); }
 .badge-orange { background: #f59e0b; color: #fff; }
 .badge-purple { background: #7c3aed; color: #fff; }
-.badge-green { background: #1a7a4a; color: #fff; }
+.badge-green { background: #16a34a; color: #fff; }
 .badge-teal { background: #0d9488; color: #fff; }
 .badge-blue { background: #1a3a6a; color: var(--white); }
 .welcome-card { background: var(--red); border-radius: 4px; padding: 28px 24px; color: var(--white); margin-bottom: 16px; position: relative; overflow: hidden; }
@@ -97,8 +97,10 @@ body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; bac
 .filter-btns { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
 .filter-btn { padding: 8px 14px; border-radius: 2px; border: 1.5px solid var(--gray-mid); cursor: pointer; font-size: 13px; font-weight: 700; background: var(--white); color: var(--text-mid); }
 .filter-btn.active { background: var(--red); color: var(--white); border-color: var(--red); }
-.avatar { width: 48px; height: 48px; border-radius: 2px; background: var(--red); display: flex; align-items: center; justify-content: center; color: var(--white); font-size: 20px; font-weight: 800; flex-shrink: 0; }
-.avatar-lg { width: 72px; height: 72px; font-size: 28px; }
+.avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--gray-mid); display: flex; align-items: center; justify-content: center; color: var(--text-mid); font-size: 16px; font-weight: 700; flex-shrink: 0; overflow: hidden; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-lg { width: 100px; height: 100px; font-size: 32px; }
+.avatar-xl { width: 140px; height: 140px; font-size: 44px; }
 .member-row { display: flex; gap: 16px; align-items: center; }
 .member-info { flex: 1; }
 .member-name { font-weight: 800; font-size: 16px; color: var(--text); }
@@ -272,6 +274,59 @@ function typeLabel(t) { return {sanyaku:'三役会議',rijikai:'理事会',reika
 function typeBadge(t) { return {sanyaku:'badge-orange',rijikai:'badge-red',reikai:'badge-green',iinkai:'badge-blue',jigyou:'badge-purple',other:'badge-teal'}[t]||'badge-blue'; }
 function fmtDate(d) { const dt=new Date(d); return dt.getFullYear()+'年'+(dt.getMonth()+1)+'月'+dt.getDate()+'日 '+dt.getHours()+':'+String(dt.getMinutes()).padStart(2,'0'); }
 function fmtDateShort(d) { const dt=new Date(d); return dt.getFullYear()+'/'+(dt.getMonth()+1)+'/'+dt.getDate(); }
+function fmtDateTime(d) { const dt=new Date(d); return dt.getFullYear()+'/'+(dt.getMonth()+1)+'/'+dt.getDate()+' '+dt.getHours()+':'+String(dt.getMinutes()).padStart(2,'0'); }
+
+// ============ 自動お知らせ ============
+async function createAutoNotice(opts) {
+  // opts: { title, body, priority, category, notice_type, event_id, file_url }
+  try {
+    const data={
+      title:opts.title,
+      body:opts.body||'',
+      priority:opts.priority||'normal',
+      category:opts.category||'general',
+      notice_type:opts.notice_type||'manual',
+      event_id:opts.event_id||null,
+      file_url:opts.file_url||null,
+      created_by:currentUser.id
+    };
+    await axios.post(API+'/notices',data,{headers:hdrs()});
+    return true;
+  } catch(e) { console.error('自動お知らせ作成失敗:',e); return false; }
+}
+
+// ============ 出欠締切前日リマインド ============
+async function checkRsvpReminders() {
+  // 出欠締切が「明日」のイベントを取得し、まだリマインド未送信のものに自動お知らせを作成
+  try {
+    const now=new Date();
+    const tomorrow=new Date(now); tomorrow.setDate(now.getDate()+1);
+    const dayAfter=new Date(now); dayAfter.setDate(now.getDate()+2);
+    const startStr=tomorrow.toISOString().split('T')[0];
+    const endStr=dayAfter.toISOString().split('T')[0];
+
+    const res=await axios.get(API+'/events?status=eq.published&rsvp_reminder_sent=eq.false&rsvp_deadline=gte.'+startStr+'T00:00:00&rsvp_deadline=lt.'+endStr+'T00:00:00',{headers:hdrs()});
+    for(const e of res.data) {
+      // 未回答者数を取得
+      const [uRes,aRes]=await Promise.all([
+        axios.get(API+'/users?is_active=eq.true&email=neq.info@nmec.jp',{headers:hdrs()}),
+        axios.get(API+'/attendances?event_id=eq.'+e.id,{headers:hdrs()})
+      ]);
+      const aids=aRes.data.map(function(a){return a.user_id;});
+      const unanswered=uRes.data.filter(function(u){return !aids.includes(u.id);}).length;
+      const deadlineStr=fmtDateTime(e.rsvp_deadline);
+      await createAutoNotice({
+        title:'⏰ 【リマインド】'+e.title+' の出欠回答締切が明日です',
+        body:'【'+typeLabel(e.type)+'】'+e.title+'\n\n📅 開催日：'+fmtDate(e.date)+'\n⏰ 出欠締切：'+deadlineStr+'\n📊 未回答：'+unanswered+'名\n\n未回答の方はお早めに回答をお願いします。',
+        priority:'important',
+        category:'deadline',
+        notice_type:'rsvp_reminder',
+        event_id:e.id
+      });
+      await axios.patch(API+'/events?id=eq.'+e.id,{rsvp_reminder_sent:true},{headers:Object.assign({},hdrs(),{'Prefer':'return=minimal'})});
+    }
+  } catch(e) { console.error('リマインドチェック失敗:',e); }
+}
 
 function navigate(page) {
   closeSidebar();
@@ -294,6 +349,10 @@ async function autoCloseEvents() {
 
 async function renderDashboard() {
   await autoCloseEvents();
+  // 出欠締切前日のリマインドを軌跡タイプでチェック（管理者のみ作成権限）
+  if(['admin','office','director'].includes(currentProfile.role)) {
+    await checkRsvpReminders();
+  }
   const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
   try {
     const [evRes,notRes]=await Promise.all([axios.get(API+'/events?status=eq.published&order=date.asc&limit=3',{headers:hdrs()}),axios.get(API+'/notices?order=created_at.desc&limit=3',{headers:hdrs()})]);
@@ -376,7 +435,7 @@ function renderMonthCalendar(year,month,events,calEvents) {
         html+='<td style="padding:0;height:80px;border:1px solid var(--gray-mid);background:'+(isToday?'#fff0f0':'#fff')+'">';
         html+='<div style="height:80px;overflow:hidden;padding:2px;">';
         html+='<div style="font-size:12px;font-weight:'+(isToday?'800':'600')+';color:'+(d===0?'#e53e3e':d===6?'#3182ce':isToday?'var(--red)':'var(--text)')+';margin-bottom:2px">'+day+'</div>';
-        const colors={sanyaku:'#f59e0b',rijikai:'#CC0000',reikai:'#1a7a4a',iinkai:'#1a3a6a',jigyou:'#7c3aed',other:'#0d9488'};
+        const colors={sanyaku:'#f59e0b',rijikai:'#CC0000',reikai:'#16a34a',iinkai:'#1a3a6a',jigyou:'#7c3aed',other:'#0d9488'};
         const allDayItems=dayEvents.concat(dayCalEvents.map(function(e){return {id:e.id,title:e.title,type:'cal',note:e.note};}));
         const maxShow=2;
         allDayItems.slice(0,maxShow).forEach(function(e){
@@ -402,37 +461,69 @@ function renderMonthCalendar(year,month,events,calEvents) {
 
 function renderWeekCalendar(events,calEvents) {
   const today=new Date();
-  const startOfWeek=new Date(today);
-  startOfWeek.setDate(today.getDate()-today.getDay());
+  // calendarCurrentDate を基準に週を計算（月ナビと同じ変数を使う）
+  const base=new Date(calendarCurrentDate);
+  const startOfWeek=new Date(base);
+  startOfWeek.setDate(base.getDate()-base.getDay());
+  startOfWeek.setHours(0,0,0,0);
   const days=[];
   for(let i=0;i<7;i++) {
     const d=new Date(startOfWeek);
     d.setDate(startOfWeek.getDate()+i);
     days.push(d);
   }
+  const endOfWeek=new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate()+6);
+  const startStr=(startOfWeek.getMonth()+1)+'/'+startOfWeek.getDate();
+  const endStr=(endOfWeek.getMonth()+1)+'/'+endOfWeek.getDate();
+  const canAdd=['admin','office','director'].includes(currentProfile.role);
+
   let html='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">';
-  html+='<div style="font-size:16px;font-weight:800;color:var(--gray-dark)">今週のスケジュール</div>';
+  html+='<div style="display:flex;gap:8px;align-items:center">';
+  html+='<button onclick="changeCalendarWeek(-1)" style="background:none;border:1.5px solid var(--gray-mid);border-radius:4px;padding:6px 12px;cursor:pointer;font-size:14px;font-weight:700">←</button>';
+  html+='<div style="font-size:15px;font-weight:800;color:var(--gray-dark)">'+startOfWeek.getFullYear()+'年 '+startStr+'〜'+endStr+'</div>';
+  html+='<button onclick="changeCalendarWeek(1)" style="background:none;border:1.5px solid var(--gray-mid);border-radius:4px;padding:6px 12px;cursor:pointer;font-size:14px;font-weight:700">→</button>';
+  html+='</div>';
   html+='<div style="display:flex;gap:8px">';
   html+='<button onclick="switchCalendarView(\'month\')" class="filter-btn '+(calendarView==='month'?'active':'')+'">月</button>';
   html+='<button onclick="switchCalendarView(\'week\')" class="filter-btn '+(calendarView==='week'?'active':'')+'">週</button>';
   html+='</div></div>';
+
   days.forEach(function(d,i){
     const dateStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     const isToday=d.toDateString()===today.toDateString();
     const dayEvents=events.filter(function(e){return e.date&&e.date.startsWith(dateStr);});
     const dayCalEvents=calEvents.filter(function(e){return e.date===dateStr;});
-    if(dayEvents.length===0&&dayCalEvents.length===0&&!isToday) return;
+    const dayColor=i===0?'#e53e3e':i===6?'#3182ce':isToday?'var(--red)':'var(--text)';
     html+='<div style="padding:10px 0;border-bottom:1px solid var(--gray)">';
-    html+='<div style="font-size:13px;font-weight:700;color:'+(i===0?'#e53e3e':i===6?'#3182ce':isToday?'var(--red)':'var(--text-mid)')+';margin-bottom:6px">'+['日','月','火','水','木','金','土'][i]+' '+d.getDate()+'日'+(isToday?' 【今日】':'')+'</div>';
-    dayEvents.forEach(function(e){
-      const colors={sanyaku:'#f59e0b',rijikai:'#CC0000',reikai:'#1a7a4a',iinkai:'#1a3a6a',jigyou:'#7c3aed',other:'#0d9488'};
-      const bg=colors[e.type]||'#CC0000';
-      html+='<div onclick="showEventDetail(\''+e.id+'\')" style="font-size:13px;background:'+bg+';color:#fff;border-radius:2px;padding:6px 10px;margin-bottom:4px;cursor:pointer">'+e.title+'</div>';
-    });
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
+    html+='<div style="font-size:14px;font-weight:'+(isToday?'800':'700')+';color:'+dayColor+'">'+['日','月','火','水','木','金','土'][i]+' '+(d.getMonth()+1)+'/'+d.getDate()+(isToday?' 【今日】':'')+'</div>';
+    if(canAdd) html+='<button onclick="showCalendarEventForm(\''+dateStr+'\')" style="background:none;border:1px solid var(--gray-mid);border-radius:2px;padding:2px 8px;font-size:12px;cursor:pointer;color:var(--text-mid)">＋ 追加</button>';
+    html+='</div>';
+    const colors={sanyaku:'#f59e0b',rijikai:'#CC0000',reikai:'#16a34a',iinkai:'#1a3a6a',jigyou:'#7c3aed',other:'#0d9488'};
+    if(dayEvents.length===0&&dayCalEvents.length===0) {
+      html+='<div style="font-size:12px;color:#bbb;padding:4px 0">予定なし</div>';
+    } else {
+      dayEvents.forEach(function(e){
+        const bg=colors[e.type]||'#CC0000';
+        const t=new Date(e.date);
+        const tm=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+        html+='<div onclick="showEventDetail(\''+e.id+'\')" style="font-size:13px;background:'+bg+';color:#fff;border-radius:2px;padding:6px 10px;margin-bottom:4px;cursor:pointer">'+tm+' '+e.title+'</div>';
+      });
+      dayCalEvents.forEach(function(e){
+        const onclick=canAdd?' onclick="deleteCalendarEvent(\''+e.id+'\')"':'';
+        html+='<div'+onclick+' style="font-size:13px;background:#3182ce;color:#fff;border-radius:2px;padding:6px 10px;margin-bottom:4px;cursor:pointer">'+e.title+'</div>';
+      });
+    }
     html+='</div>';
   });
   html+='</div>';
   return html;
+}
+
+function changeCalendarWeek(dir) {
+  calendarCurrentDate.setDate(calendarCurrentDate.getDate()+dir*7);
+  renderDashboard();
 }
 
 function changeCalendarMonth(dir) {
@@ -536,11 +627,19 @@ async function submitNewEvent() {
   try {
     const eventDate=new Date(d.date);
     const dateStr=eventDate.getFullYear()+'年'+(eventDate.getMonth()+1)+'月'+eventDate.getDate()+'日 '+eventDate.getHours()+':'+String(eventDate.getMinutes()).padStart(2,'0');
-    await axios.post(API+'/events',{title:d.title,type:d.type,date:eventDate.toISOString(),location:d.location,description:d.desc,committee:d.committee||null,rsvp_deadline:d.deadline?new Date(d.deadline).toISOString():null,status:'published',created_by:currentUser.id},{headers:hdrs()});
-    const nb='【'+typeLabel(d.type)+'】'+d.title+' の開催が登録されました。\n\n📅 日時：'+dateStr+'\n'+(d.location?'📍 場所：'+d.location+'\n':'')+(d.committee?'🏛️ 担当委員会：'+d.committee+'\n':'')+'\n詳細は「会議・事業」メニューよりご確認ください。';
-    await axios.post(API+'/notices',{title:'【'+typeLabel(d.type)+'】'+d.title+' が登録されました',body:nb,priority:'normal',created_by:currentUser.id},{headers:hdrs()});
+    const res=await axios.post(API+'/events',{title:d.title,type:d.type,date:eventDate.toISOString(),location:d.location,description:d.desc,committee:d.committee||null,rsvp_deadline:d.deadline?new Date(d.deadline).toISOString():null,status:'published',created_by:currentUser.id},{headers:Object.assign({},hdrs(),{'Prefer':'return=representation'})});
+    const newEventId=res.data&&res.data[0]?res.data[0].id:null;
+    const nb='【'+typeLabel(d.type)+'】'+d.title+' の開催が登録されました。\n\n📅 日時：'+dateStr+'\n'+(d.location?'📍 場所：'+d.location+'\n':'')+(d.committee?'🏛️ 担当委員会：'+d.committee+'\n':'')+(d.deadline?'⏰ 出欠締切：'+fmtDateTime(d.deadline)+'\n':'')+'\n詳細は「会議・事業」メニューよりご確認ください。';
+    await createAutoNotice({
+      title:'📅 【'+typeLabel(d.type)+'】'+d.title+' が登録されました',
+      body:nb,
+      priority:'normal',
+      category:'meeting',
+      notice_type:'event_created',
+      event_id:newEventId
+    });
     alert('作成しました！'); navigate('events');
-  } catch(e) { alert('作成に失敗しました'); }
+  } catch(e) { console.error(e); alert('作成に失敗しました'); }
 }
 
 async function showEventEditForm(id) {
@@ -704,28 +803,52 @@ async function uploadDocument(eventId) {
     const ext=file.name.split('.').pop(), filePath='events/'+eventId+'/'+Date.now()+'.'+ext;
     await axios.post(SUPABASE_URL+'/storage/v1/object/documents/'+filePath,file,{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+accessToken,'Content-Type':file.type}});
     const fileUrl=SUPABASE_URL+'/storage/v1/object/public/documents/'+filePath;
-    await axios.post(API+'/documents',{name,event_id:eventId,file_url:fileUrl,file_size:(file.size/1024).toFixed(0)+'KB',category:document.getElementById('upload-category').value,year:new Date().getFullYear(),uploaded_by:currentUser.id},{headers:hdrs()});
+    const category=document.getElementById('upload-category').value;
+    await axios.post(API+'/documents',{name,event_id:eventId,file_url:fileUrl,file_size:(file.size/1024).toFixed(0)+'KB',category,year:new Date().getFullYear(),uploaded_by:currentUser.id},{headers:hdrs()});
+    // イベント情報取得して自動お知らせ
+    const evRes=await axios.get(API+'/events?id=eq.'+eventId+'&select=title,type',{headers:hdrs()});
+    const ev=evRes.data[0];
+    if(ev) {
+      await createAutoNotice({
+        title:'📎 【資料公開】'+ev.title+' の資料が追加されました',
+        body:'資料名：'+name+'\n会議：'+ev.title+'\n\n詳細は「会議・事業」または「資料」メニューよりご確認ください。',
+        priority:'normal',
+        category:'meeting',
+        notice_type:'document_uploaded',
+        event_id:eventId
+      });
+    }
     alert('アップロード完了！'); showEventDetail(eventId);
-  } catch(e) { alert('アップロードに失敗しました'); btn.textContent='アップロードする'; btn.disabled=false; }
+  } catch(e) { console.error(e); alert('アップロードに失敗しました'); btn.textContent='アップロードする'; btn.disabled=false; }
 }
 
 async function renderMotions() {
   const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
   try {
-    const res=await axios.get(API+'/documents?order=created_at.desc',{headers:hdrs()});
+    const res=await axios.get(API+'/documents?order=updated_at.desc.nullslast,created_at.desc',{headers:hdrs()});
     const catLabels={kumiai:'組合資料',keikaku:'計画資料',rijikai:'理事会資料',sanyaku:'三役資料',reikai:'例会資料',other:'その他'};
     const catColors={kumiai:'badge-red',keikaku:'badge-blue',rijikai:'badge-orange',sanyaku:'badge-purple',reikai:'badge-green',other:'badge-teal'};
-    const catIcons={kumiai:'📋',keikaku:'📊',rijikai:'📝',sanyaku:'⭐',reikai:'📅',other:'📄'};
+    // アイコンは「カテゴリの種別」をビジュアルで識別するためのもの（カラーバッジと連動）
+    const catIcons={kumiai:'🏢',keikaku:'📊',rijikai:'⚖️',sanyaku:'👑',reikai:'🎤',other:'📄'};
     const canUpload=['admin','office','director'].includes(currentProfile.role);
     let html=canUpload?'<button class="submit-btn-outline" onclick="showDocumentUploadForm()">＋ 資料を追加</button>':'';
+
+    // アイコン凡例
+    html+='<div style="background:#f8f9fa;border-radius:4px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--text-mid)">'
+      +'<div style="font-weight:700;color:var(--gray-dark);margin-bottom:4px">📌 アイコンの意味</div>'
+      +'<div>🏢 組合資料 / 📊 計画資料 / ⚖️ 理事会資料 / 👑 三役資料 / 🎤 例会資料 / 📄 その他</div>'
+      +'</div>';
+
     html+='<div class="filter-btns"><button class="filter-btn active" onclick="filterMotionDocs(\'all\',this)">すべて</button><button class="filter-btn" onclick="filterMotionDocs(\'kumiai\',this)">組合資料</button><button class="filter-btn" onclick="filterMotionDocs(\'keikaku\',this)">計画資料</button><button class="filter-btn" onclick="filterMotionDocs(\'rijikai\',this)">理事会資料</button><button class="filter-btn" onclick="filterMotionDocs(\'sanyaku\',this)">三役資料</button><button class="filter-btn" onclick="filterMotionDocs(\'reikai\',this)">例会資料</button><button class="filter-btn" onclick="filterMotionDocs(\'other\',this)">その他</button></div>';
     html+='<input class="search-input" placeholder="🔍 ファイル名で検索..." oninput="filterMotionDocsByName(this.value)"><div id="motions-docs-list">';
     if(res.data.length===0) html+='<div class="empty">資料がまだありません</div>';
     res.data.forEach(function(d){
-      html+='<div class="card" data-cat="'+d.category+'" data-name="'+(d.name||'')+'"><div class="doc-row"><div style="font-size:32px">'+(catIcons[d.category]||'📄')+'</div><div class="doc-info"><div class="doc-name">'+d.name+'</div><div class="doc-meta" style="margin-top:6px"><span class="badge '+(catColors[d.category]||'badge-gray')+'">'+(catLabels[d.category]||d.category)+'</span><span style="margin-left:8px;font-size:12px;color:var(--text-mid)">'+fmtDateShort(d.created_at)+'</span>'+(d.file_size?'<span style="margin-left:8px;font-size:12px;color:var(--text-mid)">'+d.file_size+'</span>':'')+'</div></div><div style="display:flex;flex-direction:column;gap:6px"><a href="'+d.file_url+'" target="_blank"><button class="dl-btn">表示</button></a>'+(canUpload?'<button onclick="deleteDocument(\''+d.id+'\',null)" style="padding:6px 12px;background:none;border:1px solid #ccc;border-radius:2px;font-size:12px;cursor:pointer;color:#999">削除</button>':'')+'</div></div></div>';
+      const verBadge=d.version_label?'<span class="badge '+(d.version_label==='最終版'?'badge-red':d.version_label==='修正版'?'badge-orange':'badge-gray')+'" style="margin-left:6px">'+d.version_label+'</span>':'';
+      const upd=d.updated_at&&d.updated_at!==d.created_at?'<span style="margin-left:8px;font-size:12px;color:var(--red);font-weight:700">🔄 '+fmtDateShort(d.updated_at)+' 更新</span>':'';
+      html+='<div class="card" data-cat="'+d.category+'" data-name="'+(d.name||'')+'"><div class="doc-row"><div style="font-size:32px">'+(catIcons[d.category]||'📄')+'</div><div class="doc-info"><div class="doc-name">'+d.name+verBadge+'</div><div class="doc-meta" style="margin-top:6px"><span class="badge '+(catColors[d.category]||'badge-gray')+'">'+(catLabels[d.category]||d.category)+'</span><span style="margin-left:8px;font-size:12px;color:var(--text-mid)">'+fmtDateShort(d.created_at)+' 作成</span>'+upd+(d.file_size?'<span style="margin-left:8px;font-size:12px;color:var(--text-mid)">'+d.file_size+'</span>':'')+'</div></div><div style="display:flex;flex-direction:column;gap:6px"><a href="'+d.file_url+'" target="_blank"><button class="dl-btn">表示</button></a>'+(canUpload?'<button onclick="event.stopPropagation();showDocumentEditForm(\''+d.id+'\')" style="padding:6px 12px;background:none;border:1.5px solid var(--red);color:var(--red);border-radius:2px;font-size:12px;cursor:pointer;font-weight:700">差替</button><button onclick="event.stopPropagation();deleteDocument(\''+d.id+'\',null)" style="padding:6px 12px;background:none;border:1px solid #ccc;border-radius:2px;font-size:12px;cursor:pointer;color:#999">削除</button>':'')+'</div></div></div>';
     });
     html+='</div>'; el.innerHTML=html;
-  } catch(e) { el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
+  } catch(e) { console.error(e); el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
 }
 
 function filterMotionDocs(cat,btn) { document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active');}); btn.classList.add('active'); document.querySelectorAll('#motions-docs-list .card').forEach(function(c){c.style.display=(cat==='all'||c.dataset.cat===cat)?'block':'none';}); }
@@ -733,21 +856,94 @@ function filterMotionDocsByName(q) { const lq=q.toLowerCase(); document.querySel
 
 function showDocumentUploadForm() {
   const el=document.getElementById('main-content');
-  el.innerHTML='<button class="back-btn" onclick="navigate(\'motions\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">📁 資料を追加</div><div class="form-group-inline"><label>ファイル名 *</label><input type="text" id="doc-name" placeholder="例：R8年度 事業計画書"></div><div class="form-group-inline"><label>種別 *</label><select id="doc-category"><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select></div><div class="form-group-inline"><label>ファイルを選択 *</label><input type="file" id="doc-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:15px"></div><button class="submit-btn" onclick="submitDocumentUpload()">アップロードする</button></div>';
+  el.innerHTML='<button class="back-btn" onclick="navigate(\'motions\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">📁 資料を追加</div>'
+    +'<div class="form-group-inline"><label>ファイル名 *</label><input type="text" id="doc-name" placeholder="例：R8年度 事業計画書"></div>'
+    +'<div class="form-group-inline"><label>種別 *</label><select id="doc-category"><option value="kumiai">🏢 組合資料</option><option value="keikaku">📊 計画資料</option><option value="rijikai">⚖️ 理事会資料</option><option value="sanyaku">👑 三役資料</option><option value="reikai">🎤 例会資料</option><option value="other">📄 その他</option></select></div>'
+    +'<div class="form-group-inline"><label>版（任意）</label><select id="doc-version"><option value="">（指定なし）</option><option value="第1版">第1版</option><option value="第2版">第2版</option><option value="第3版">第3版</option><option value="修正版">修正版</option><option value="最終版">最終版</option></select></div>'
+    +'<div class="form-group-inline"><label>ファイルを選択 *（最大5個まで）</label><input type="file" id="doc-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" multiple style="width:100%;padding:8px 0;font-size:15px"><div style="font-size:11px;color:var(--text-mid);margin-top:4px">※ 複数選択した場合、それぞれ個別の資料として登録されます</div></div>'
+    +'<button class="submit-btn" onclick="submitDocumentUpload()">アップロードする</button></div>';
 }
 
 async function submitDocumentUpload() {
-  const name=document.getElementById('doc-name').value, file=document.getElementById('doc-file').files[0], category=document.getElementById('doc-category').value;
-  if(!name) { alert('ファイル名を入力してください'); return; }
-  if(!file) { alert('ファイルを選択してください'); return; }
+  const baseName=document.getElementById('doc-name').value;
+  const files=document.getElementById('doc-file').files;
+  const category=document.getElementById('doc-category').value;
+  const version=document.getElementById('doc-version').value;
+  if(!baseName) { alert('ファイル名を入力してください'); return; }
+  if(!files||files.length===0) { alert('ファイルを選択してください'); return; }
+  if(files.length>5) { alert('一度にアップロードできるのは最大5個までです'); return; }
   const btn=document.querySelector('#main-content .submit-btn'); btn.textContent='アップロード中...'; btn.disabled=true;
   try {
-    const ext=file.name.split('.').pop(), filePath='documents/'+Date.now()+'.'+ext;
-    await axios.post(SUPABASE_URL+'/storage/v1/object/documents/'+filePath,file,{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+accessToken,'Content-Type':file.type}});
-    const fileUrl=SUPABASE_URL+'/storage/v1/object/public/documents/'+filePath;
-    await axios.post(API+'/documents',{name,category,file_url:fileUrl,file_size:(file.size/1024).toFixed(0)+'KB',year:new Date().getFullYear(),uploaded_by:currentUser.id},{headers:hdrs()});
+    const catLabels={kumiai:'組合資料',keikaku:'計画資料',rijikai:'理事会資料',sanyaku:'三役資料',reikai:'例会資料',other:'その他'};
+    for(let i=0;i<files.length;i++){
+      const file=files[i];
+      const ext=file.name.split('.').pop(), filePath='documents/'+Date.now()+'_'+i+'.'+ext;
+      await axios.post(SUPABASE_URL+'/storage/v1/object/documents/'+filePath,file,{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+accessToken,'Content-Type':file.type}});
+      const fileUrl=SUPABASE_URL+'/storage/v1/object/public/documents/'+filePath;
+      const docName=files.length>1?baseName+' ('+(i+1)+')':baseName;
+      await axios.post(API+'/documents',{name:docName,category,version_label:version||null,file_url:fileUrl,file_size:(file.size/1024).toFixed(0)+'KB',year:new Date().getFullYear(),uploaded_by:currentUser.id},{headers:hdrs()});
+    }
+    // 自動お知らせ
+    await createAutoNotice({
+      title:'📁 【資料】'+baseName+(version?'（'+version+'）':'')+' が公開されました',
+      body:'カテゴリ：'+(catLabels[category]||category)+'\nファイル数：'+files.length+'件\n\n詳細は「資料」メニューよりご確認ください。',
+      priority:'normal',
+      category:'meeting',
+      notice_type:'document_uploaded'
+    });
     alert('アップロードしました！'); navigate('motions');
-  } catch(e) { alert('アップロードに失敗しました'); btn.textContent='アップロードする'; btn.disabled=false; }
+  } catch(e) { console.error(e); alert('アップロードに失敗しました'); btn.textContent='アップロードする'; btn.disabled=false; }
+}
+
+async function showDocumentEditForm(id) {
+  const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
+  try {
+    const res=await axios.get(API+'/documents?id=eq.'+id,{headers:hdrs()}); const d=res.data[0];
+    el.innerHTML='<button class="back-btn" onclick="navigate(\'motions\')">← 一覧に戻る</button>'
+      +'<div class="card card-accent"><div class="section-title">📝 資料を差し替え・編集</div>'
+      +'<div style="background:#fff8e1;border-radius:4px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#92400e">💡 ファイルを差し替えると更新日が自動更新され、お知らせも自動で投稿されます</div>'
+      +'<div class="form-group-inline"><label>ファイル名</label><input type="text" id="doc-name" value="'+(d.name||'').replace(/"/g,'&quot;')+'"></div>'
+      +'<div class="form-group-inline"><label>種別</label><select id="doc-category">'
+        +['kumiai','keikaku','rijikai','sanyaku','reikai','other'].map(function(c){const lbl={kumiai:'🏢 組合資料',keikaku:'📊 計画資料',rijikai:'⚖️ 理事会資料',sanyaku:'👑 三役資料',reikai:'🎤 例会資料',other:'📄 その他'}[c];return '<option value="'+c+'"'+(d.category===c?' selected':'')+'>'+lbl+'</option>';}).join('')
+      +'</select></div>'
+      +'<div class="form-group-inline"><label>版</label><select id="doc-version">'
+        +['','第1版','第2版','第3版','修正版','最終版'].map(function(v){const lbl=v||'（指定なし）';return '<option value="'+v+'"'+(d.version_label===v?' selected':'')+'>'+lbl+'</option>';}).join('')
+      +'</select></div>'
+      +'<div style="padding:10px 0;border-top:1px solid var(--gray);margin-bottom:12px"><div style="font-size:13px;font-weight:700;color:var(--gray-dark);margin-bottom:6px">現在のファイル</div><a href="'+d.file_url+'" target="_blank" style="color:var(--red);font-size:14px;font-weight:700;text-decoration:none">📎 表示する</a></div>'
+      +'<div class="form-group-inline"><label>新しいファイル（差替する場合）</label><input type="file" id="doc-new-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div>'
+      +'<button class="submit-btn" onclick="updateDocument(\''+id+'\')">更新する</button>'
+      +'</div>';
+  } catch(e) { alert('読み込みに失敗しました'); }
+}
+
+async function updateDocument(id) {
+  const name=document.getElementById('doc-name').value;
+  const category=document.getElementById('doc-category').value;
+  const version=document.getElementById('doc-version').value;
+  const newFile=document.getElementById('doc-new-file').files[0];
+  if(!name) { alert('ファイル名を入力してください'); return; }
+  const btn=document.querySelector('#main-content .submit-btn'); btn.textContent='更新中...'; btn.disabled=true;
+  try {
+    const upd={name,category,version_label:version||null};
+    if(newFile){
+      const ext=newFile.name.split('.').pop(), filePath='documents/'+Date.now()+'.'+ext;
+      await axios.post(SUPABASE_URL+'/storage/v1/object/documents/'+filePath,newFile,{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+accessToken,'Content-Type':newFile.type}});
+      upd.file_url=SUPABASE_URL+'/storage/v1/object/public/documents/'+filePath;
+      upd.file_size=(newFile.size/1024).toFixed(0)+'KB';
+    }
+    await axios.patch(API+'/documents?id=eq.'+id,upd,{headers:Object.assign({},hdrs(),{'Prefer':'return=minimal'})});
+    // ファイル差替時のみ自動お知らせ
+    if(newFile){
+      await createAutoNotice({
+        title:'🔄 【資料更新】'+name+(version?'（'+version+'）':'')+' が差し替えられました',
+        body:'資料が更新されました。\n\n詳細は「資料」メニューよりご確認ください。',
+        priority:'normal',
+        category:'meeting',
+        notice_type:'document_uploaded'
+      });
+    }
+    alert('更新しました！'); navigate('motions');
+  } catch(e) { console.error(e); alert('更新に失敗しました'); btn.textContent='更新する'; btn.disabled=false; }
 }
 
 async function renderMembers() {
@@ -801,8 +997,13 @@ function memberCardV2(m, userCommittees, chairCommittees, committees, committeeI
     committeeTags+='<span class="committee-tag" style="'+(isHighlight?'background:#fff0f0;border-color:#cc9999;color:var(--red)':'')+'">🏛️ '+c.name+(cm.role!=='member'?' · '+roleName:'')+'</span> ';
   });
 
+  const avatarHtml=m.avatar_url
+    ?'<div class="avatar"><img src="'+m.avatar_url+'" alt="'+(m.name||'')+'"></div>'
+    :'<div class="avatar" style="background:#f0f0f0;color:#bbb;font-size:22px">👤</div>';
+
   return '<div class="card" onclick="showMemberDetail(\''+m.id+'\')" style="cursor:pointer" data-name="'+(m.name||'')+'" data-company="'+(m.company||'')+'" data-committees="'+committeeIds+'" data-position="'+(m.position||'')+'">'
     +'<div class="member-row">'
+    +avatarHtml
     +'<div class="member-info">'
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">'
     +'<div class="member-name">'+(m.name||'—')+'</div>'
@@ -850,9 +1051,9 @@ async function showMemberDetail(id) {
       axios.get(API+'/committees',{headers:hdrs()})
     ]);
     const m=uRes.data[0], userCommittees=mRes.data, committees=cRes.data;
-    const initial=(m.name||'?').replace(/\s/g,'').charAt(0);
     const canSee=['admin','office','director'].includes(currentProfile.role)||currentUser.id===id;
     const roleMap={chair:'委員長',vice_chair:'副委員長',vice_director:'担当副理事長',member:'メンバー'};
+    const avatarHtml=m.avatar_url?'<div class="avatar avatar-xl"><img src="'+m.avatar_url+'" alt="'+m.name+'"></div>':'<div class="avatar avatar-xl" style="background:#e8e8e8;color:#999;font-size:48px">👤</div>';
 
     const chairCommittees=committees.filter(function(c){return c.chair_id===m.id;});
 
@@ -876,9 +1077,9 @@ async function showMemberDetail(id) {
 
     el.innerHTML='<button class="back-btn" onclick="navigate(\'members\')">← 一覧に戻る</button>'
       +'<div class="card card-accent">'
-      +'<div style="display:flex;gap:20px;align-items:center;margin-bottom:20px">'
-      +'<div class="avatar avatar-lg">'+initial+'</div>'
-      +'<div><div style="font-size:22px;font-weight:800;color:var(--gray-dark)">'+(m.name||'—')+'</div>'
+      +'<div style="display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:20px">'
+      +avatarHtml
+      +'<div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--gray-dark)">'+(m.name||'—')+'</div>'
       +'<div style="font-size:15px;color:var(--text-mid);margin-top:6px">'+(m.company||'')+'</div>'
       +'<div style="margin-top:8px"><span class="badge badge-red">'+roleLabel(m.role)+'</span></div></div></div>'
       +drow('役職',m.position||'—')
@@ -896,27 +1097,60 @@ function drow(label,value) { return '<div class="detail-row"><span class="detail
 function categoryLabel(c){return{general:'一般',deadline:'期限あり',meeting:'会議関連',important:'重要連絡'}[c]||'一般';}
 function categoryBadge(c){return{general:'badge-gray',deadline:'badge-orange',meeting:'badge-blue',important:'badge-red'}[c]||'badge-gray';}
 
+function noticeTypeIcon(t) {
+  return {event_created:'📅',document_uploaded:'📁',proposal_completed:'📝',rsvp_reminder:'⏰',manual:'✍️'}[t]||'';
+}
+
 async function renderNotices() {
   const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
   try {
     const res=await axios.get(API+'/notices?order=created_at.desc',{headers:hdrs()});
     const canCreate=['admin','office'].includes(currentProfile.role);
     let html=canCreate?'<button class="submit-btn-outline" onclick="showNoticeForm()">＋ お知らせを投稿</button>':'';
+
+    // 種類フィルタ
+    html+='<div class="filter-btns">'
+      +'<button class="filter-btn active" onclick="filterNotices(\'all\',this)">すべて</button>'
+      +'<button class="filter-btn" onclick="filterNotices(\'important\',this)">重要</button>'
+      +'<button class="filter-btn" onclick="filterNotices(\'deadline\',this)">期限あり</button>'
+      +'<button class="filter-btn" onclick="filterNotices(\'meeting\',this)">会議関連</button>'
+      +'<button class="filter-btn" onclick="filterNotices(\'general\',this)">一般</button>'
+      +'</div>';
+
+    html+='<div id="notices-list">';
     if(res.data.length===0) html+='<div class="empty">お知らせがまだありません</div>';
     res.data.forEach(function(n){
       const canEdit=['admin','office'].includes(currentProfile.role);
-      html+='<div class="card '+(n.priority==='important'?'card-accent':'')+'"><div style="display:flex;justify-content:space-between;margin-bottom:8px;align-items:center"><div style="display:flex;gap:8px">'+(n.priority==='important'?'<span class="badge badge-red">重要</span>':'')+' <span class="badge '+categoryBadge(n.category)+'">'+categoryLabel(n.category)+'</span></div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:var(--text-mid)">'+fmtDateShort(n.created_at)+'</span>'+(canEdit?'<button onclick="showNoticeEditForm(\''+n.id+'\')" style="background:none;border:1px solid var(--gray-mid);border-radius:2px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--text-mid)">編集</button><button onclick="deleteNotice(\''+n.id+'\')" style="background:none;border:1px solid #ccc;border-radius:2px;padding:3px 8px;font-size:11px;cursor:pointer;color:#999">削除</button>':'')+'</div></div><div style="font-weight:'+(n.priority==='important'?800:700)+';font-size:16px;color:var(--text);cursor:pointer" onclick="showNoticeDetail(\''+n.id+'\')">'+n.title+'</div></div>';
+      const isAuto=n.notice_type&&n.notice_type!=='manual';
+      const typeIcon=noticeTypeIcon(n.notice_type);
+      const autoTag=isAuto?'<span style="font-size:10px;background:#e8f4f8;color:#0d6efd;padding:2px 6px;border-radius:2px;font-weight:700;margin-left:4px">自動</span>':'';
+      html+='<div class="card '+(n.priority==='important'?'card-accent':'')+'" data-priority="'+n.priority+'" data-category="'+(n.category||'general')+'"><div style="display:flex;justify-content:space-between;margin-bottom:8px;align-items:center;flex-wrap:wrap;gap:6px"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'+(n.priority==='important'?'<span class="badge badge-red">重要</span>':'')+'<span class="badge '+categoryBadge(n.category)+'">'+categoryLabel(n.category)+'</span>'+autoTag+'</div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:var(--text-mid)">'+fmtDateShort(n.created_at)+'</span>'+(canEdit?'<button onclick="showNoticeEditForm(\''+n.id+'\')" style="background:none;border:1px solid var(--gray-mid);border-radius:2px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--text-mid)">編集</button><button onclick="deleteNotice(\''+n.id+'\')" style="background:none;border:1px solid #ccc;border-radius:2px;padding:3px 8px;font-size:11px;cursor:pointer;color:#999">削除</button>':'')+'</div></div><div style="font-weight:'+(n.priority==='important'?800:700)+';font-size:16px;color:var(--text);cursor:pointer" onclick="showNoticeDetail(\''+n.id+'\')">'+(typeIcon?typeIcon+' ':'')+n.title+'</div></div>';
     });
+    html+='</div>';
     el.innerHTML=html;
-  } catch(e) { el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
+  } catch(e) { console.error(e); el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function filterNotices(filter,btn) {
+  document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  document.querySelectorAll('#notices-list .card').forEach(function(c){
+    if(filter==='all') { c.style.display='block'; return; }
+    if(filter==='important') { c.style.display=c.dataset.priority==='important'?'block':'none'; return; }
+    c.style.display=c.dataset.category===filter?'block':'none';
+  });
 }
 
 async function showNoticeDetail(id) {
   const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
   try {
     const res=await axios.get(API+'/notices?id=eq.'+id,{headers:hdrs()}); const n=res.data[0];
-    el.innerHTML='<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">'+(n.priority==='important'?'<span class="badge badge-red">重要</span>':'')+' <span class="badge '+categoryBadge(n.category)+'">'+categoryLabel(n.category)+'</span><span style="font-size:13px;color:var(--text-mid)">'+fmtDateShort(n.created_at)+'</span></div><div style="font-size:20px;font-weight:800;color:var(--gray-dark);margin-bottom:20px;line-height:1.4">'+n.title+'</div><div style="font-size:15px;color:var(--text);line-height:1.9;white-space:pre-line">'+(n.body||'').replace('「会議・事業」メニューよりご確認ください。','<span onclick="navigate(\'events\')" style="color:var(--red);font-weight:700;text-decoration:underline;cursor:pointer">「会議・事業」メニューよりご確認ください。</span>')+'</div>'+(n.file_url?'<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray)"><a href="'+n.file_url+'" target="_blank" style="display:flex;align-items:center;gap:8px;color:var(--red);font-weight:700;font-size:14px;text-decoration:none">📎 '+decodeURIComponent(n.file_url.split('/').pop())+'</a></div>':'')+'</div>';
-  } catch(e) { el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
+    const isAuto=n.notice_type&&n.notice_type!=='manual';
+    const typeIcon=noticeTypeIcon(n.notice_type);
+    const autoTag=isAuto?'<span style="font-size:10px;background:#e8f4f8;color:#0d6efd;padding:2px 6px;border-radius:2px;font-weight:700">自動</span>':'';
+    const eventLink=n.event_id?'<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--gray)"><button onclick="showEventDetail(\''+n.event_id+'\')" style="background:var(--red);color:#fff;border:none;border-radius:4px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer">📅 関連する会議・事業の詳細を見る</button></div>':'';
+    el.innerHTML='<button class="back-btn" onclick="navigate(\'notices\')">← 一覧に戻る</button><div class="card card-accent"><div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">'+(n.priority==='important'?'<span class="badge badge-red">重要</span>':'')+'<span class="badge '+categoryBadge(n.category)+'">'+categoryLabel(n.category)+'</span>'+autoTag+'<span style="font-size:13px;color:var(--text-mid)">'+fmtDateShort(n.created_at)+'</span></div><div style="font-size:20px;font-weight:800;color:var(--gray-dark);margin-bottom:20px;line-height:1.4">'+(typeIcon?typeIcon+' ':'')+n.title+'</div><div style="font-size:15px;color:var(--text);line-height:1.9;white-space:pre-line">'+(n.body||'').replace('「会議・事業」メニューよりご確認ください。','<span onclick="navigate(\'events\')" style="color:var(--red);font-weight:700;text-decoration:underline;cursor:pointer">「会議・事業」メニューよりご確認ください。</span>')+'</div>'+(n.file_url?'<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray)"><a href="'+n.file_url+'" target="_blank" style="display:flex;align-items:center;gap:8px;color:var(--red);font-weight:700;font-size:14px;text-decoration:none">📎 '+decodeURIComponent(n.file_url.split('/').pop())+'</a></div>':'')+eventLink+'</div>';
+  } catch(e) { console.error(e); el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
 }
 
 async function deleteNotice(id) {
@@ -1343,11 +1577,25 @@ async function saveProposal(id,status) {
       data.attachments.push({name:file.name,url:fileUrl,type:file.type});
     }
 
+    let wasNotDraftBefore=false;
     if(id && id!=='null' && id!=='') {
+      // 完成保存への遷移かチェック
+      const oldRes=await axios.get(API+'/proposals?id=eq.'+id+'&select=status',{headers:hdrs()});
+      wasNotDraftBefore=oldRes.data[0]&&oldRes.data[0].status==='final';
       await axios.patch(API+'/proposals?id=eq.'+id,data,{headers:Object.assign({},hdrs(),{'Prefer':'return=minimal'})});
     } else {
       data.created_by=currentUser.id;
       await axios.post(API+'/proposals',data,{headers:hdrs()});
+    }
+    // 完成保存（draftでない）かつ、まだ完成済みでなかった場合のみお知らせ
+    if(status==='final' && !wasNotDraftBefore) {
+      await createAutoNotice({
+        title:'📝 【議案書】「'+(data.title||'')+'」が完成しました',
+        body:'担当：'+(data.committee||'')+(data.committee_leader?'　委員長：'+data.committee_leader:'')+'\n\n詳細は「議案書」メニューよりご確認ください。',
+        priority:'normal',
+        category:'meeting',
+        notice_type:'proposal_completed'
+      });
     }
     alert(status==='draft'?'下書き保存しました！':'完成保存しました！');
     navigate('proposals');
@@ -1433,7 +1681,16 @@ async function renderProfile() {
   try {
     const res=await axios.get(API+'/users?id=eq.'+currentUser.id,{headers:hdrs()});
     const m=res.data[0];
+    const avatarPreview=m.avatar_url
+      ?'<img src="'+m.avatar_url+'" style="width:100%;height:100%;object-fit:cover">'
+      :'<div style="font-size:48px;color:#bbb">👤</div>';
     el.innerHTML='<div class="card card-accent"><div class="section-title">👤 プロフィール編集</div>'
+      +'<div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--gray)">'
+      +'<div id="avatar-preview" style="width:120px;height:120px;border-radius:50%;background:#f0f0f0;display:flex;align-items:center;justify-content:center;overflow:hidden;border:2px solid var(--gray-mid)">'+avatarPreview+'</div>'
+      +'<input type="file" id="pf-avatar" accept="image/jpeg,image/png,image/webp" onchange="previewAvatar(this)" style="font-size:13px">'
+      +(m.avatar_url?'<button onclick="removeAvatar()" style="background:none;border:1px solid #ccc;border-radius:2px;padding:4px 12px;font-size:12px;cursor:pointer;color:#999">写真を削除</button>':'')
+      +'<div style="font-size:11px;color:var(--text-mid)">JPEG・PNG・WEBP / 推奨：正方形・5MB以下</div>'
+      +'</div>'
       +'<div class="form-group-inline"><label>お名前</label><input type="text" id="pf-name" value="'+(m.name||'')+'" placeholder="山田 太郎"></div>'
       +'<div class="form-group-inline"><label>会社名</label><input type="text" id="pf-company" value="'+(m.company||'')+'" placeholder="株式会社〇〇"></div>'
       +'<div class="form-group-inline"><label>役職</label><input type="text" id="pf-position" value="'+(m.position||'')+'" placeholder="例：代表取締役"></div>'
@@ -1441,7 +1698,28 @@ async function renderProfile() {
       +'<div class="form-group-inline"><label>自己紹介</label><textarea id="pf-bio" placeholder="自己紹介を入力" style="min-height:100px">'+(m.bio||'')+'</textarea></div>'
       +'<button class="submit-btn" onclick="saveProfile()">保存する</button>'
       +'</div>';
+    window._currentAvatarUrl=m.avatar_url||null;
+    window._removeAvatar=false;
   } catch(e) { el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
+}
+
+function previewAvatar(input) {
+  const file=input.files[0];
+  if(!file) return;
+  if(file.size>5*1024*1024){ alert('5MB以下のファイルを選択してください'); input.value=''; return; }
+  const reader=new FileReader();
+  reader.onload=function(e){
+    document.getElementById('avatar-preview').innerHTML='<img src="'+e.target.result+'" style="width:100%;height:100%;object-fit:cover">';
+  };
+  reader.readAsDataURL(file);
+  window._removeAvatar=false;
+}
+
+function removeAvatar() {
+  if(!confirm('プロフィール写真を削除しますか？')) return;
+  document.getElementById('avatar-preview').innerHTML='<div style="font-size:48px;color:#bbb">👤</div>';
+  document.getElementById('pf-avatar').value='';
+  window._removeAvatar=true;
 }
 
 async function saveProfile() {
@@ -1450,20 +1728,31 @@ async function saveProfile() {
   const btn=document.querySelector('#main-content .submit-btn');
   if(btn){btn.textContent='保存中...';btn.disabled=true;}
   try {
+    let avatarUrl=window._currentAvatarUrl;
+    if(window._removeAvatar) avatarUrl=null;
+    const avatarFile=document.getElementById('pf-avatar').files[0];
+    if(avatarFile){
+      const ext=avatarFile.name.split('.').pop().toLowerCase();
+      const filePath='avatars/'+currentUser.id+'_'+Date.now()+'.'+ext;
+      await axios.post(SUPABASE_URL+'/storage/v1/object/documents/'+filePath,avatarFile,{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+accessToken,'Content-Type':avatarFile.type}});
+      avatarUrl=SUPABASE_URL+'/storage/v1/object/public/documents/'+filePath;
+    }
     await axios.patch(API+'/users?id=eq.'+currentUser.id,{
       name,
       company:document.getElementById('pf-company').value,
       position:document.getElementById('pf-position').value,
       phone:document.getElementById('pf-phone').value,
-      bio:document.getElementById('pf-bio').value
+      bio:document.getElementById('pf-bio').value,
+      avatar_url:avatarUrl
     },{headers:Object.assign({},hdrs(),{'Prefer':'return=minimal'})});
     currentProfile.name=name;
     currentProfile.company=document.getElementById('pf-company').value;
+    currentProfile.avatar_url=avatarUrl;
     document.getElementById('sb-name').textContent=name;
     document.getElementById('sb-company').textContent=document.getElementById('pf-company').value;
     alert('保存しました！');
     if(btn){btn.textContent='保存する';btn.disabled=false;}
-  } catch(e) { alert('保存に失敗しました'); if(btn){btn.textContent='保存する';btn.disabled=false;} }
+  } catch(e) { console.error(e); alert('保存に失敗しました'); if(btn){btn.textContent='保存する';btn.disabled=false;} }
 }
 
 checkRsvpUrl();
