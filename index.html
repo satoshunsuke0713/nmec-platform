@@ -563,9 +563,18 @@ async function renderEvents() {
     const canCreate=['admin','office','director'].includes(currentProfile.role);
     let html='<div class="filter-btns"><button class="filter-btn active" onclick="filterEvents(\'all\',this)">すべて</button><button class="filter-btn" onclick="filterEvents(\'sanyaku\',this)">三役会議</button><button class="filter-btn" onclick="filterEvents(\'rijikai\',this)">理事会</button><button class="filter-btn" onclick="filterEvents(\'reikai\',this)">例会</button><button class="filter-btn" onclick="filterEvents(\'iinkai\',this)">委員会</button><button class="filter-btn" onclick="filterEvents(\'jigyou\',this)">その他事業</button></div>';
     if(canCreate) html+='<button class="submit-btn-outline" onclick="showEventForm()">＋ イベントを作成</button>';
+    const upcoming=res.data.filter(function(e){return e.status!=='done';}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+    const done=res.data.filter(function(e){return e.status==='done';}).sort(function(a,b){return new Date(b.date)-new Date(a.date);});
     html+='<div id="events-list">';
     if(res.data.length===0) html+='<div class="empty">予定がまだありません</div>';
-    res.data.forEach(function(e){ html+=eventCard(e); });
+    if(upcoming.length>0) {
+      html+='<div style="font-size:14px;font-weight:800;color:var(--gray-dark);margin:20px 0 10px;padding:8px 12px;background:#fff;border-left:4px solid var(--red);border-radius:2px;">📅 今後開催 <span style="font-size:12px;color:var(--text-mid);font-weight:600;margin-left:6px">'+upcoming.length+'件</span></div>';
+      upcoming.forEach(function(e){ html+=eventCard(e); });
+    }
+    if(done.length>0) {
+      html+='<div style="font-size:14px;font-weight:800;color:var(--text-mid);margin:20px 0 10px;padding:8px 12px;background:#fff;border-left:4px solid #999;border-radius:2px;">✅ 終了 <span style="font-size:12px;color:var(--text-mid);font-weight:600;margin-left:6px">'+done.length+'件</span></div>';
+      done.forEach(function(e){ html+=eventCard(e); });
+    }
     html+='</div>'; el.innerHTML=html;
   } catch(e) { el.innerHTML='<div class="empty">読み込みに失敗しました</div>'; }
 }
