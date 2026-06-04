@@ -97,6 +97,12 @@ body { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; bac
 .filter-btns { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
 .filter-btn { padding: 8px 14px; border-radius: 2px; border: 1.5px solid var(--gray-mid); cursor: pointer; font-size: 13px; font-weight: 700; background: var(--white); color: var(--text-mid); }
 .filter-btn.active { background: var(--red); color: var(--white); border-color: var(--red); }
+  .invite-badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; background: #fef3c7; color: #92400e; font-weight: 700; border: 1px solid #fbbf24; margin-right: 4px; }
+.invite-checkboxes { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #fafafa; border: 1.5px solid var(--gray-mid); border-radius: 2px; max-height: 200px; overflow-y: auto; }
+.invite-checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; cursor: pointer; padding: 4px 0; }
+.invite-checkbox-label input { width: 18px; height: 18px; cursor: pointer; }
+.row.not-invited { opacity: 0.4; }
+.row.not-invited .row-title::after { content: ' (招待外)'; font-size: 11px; color: #999; font-weight: 500; }
 .avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--gray-mid); display: flex; align-items: center; justify-content: center; color: var(--text-mid); font-size: 16px; font-weight: 700; flex-shrink: 0; overflow: hidden; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
 .avatar-lg { width: 100px; height: 100px; font-size: 32px; }
@@ -599,8 +605,18 @@ function showEventForm() {
   const el=document.getElementById('main-content');
   axios.get(API+'/committees?order=sort_order.asc',{headers:hdrs()}).then(function(res){
     const opts=res.data.map(function(c){return '<option value="'+c.name+'">'+c.name+'</option>';}).join('');
-    el.innerHTML='<button class="back-btn" onclick="navigate(\'events\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">📅 イベントを作成</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="ev-title" placeholder="第149回 定例例会"></div><div class="form-group-inline"><label>種別 *</label><select id="ev-type"><option value="sanyaku">三役会議</option><option value="rijikai">理事会</option><option value="reikai">例会</option><option value="iinkai">委員会</option><option value="jigyou">その他事業</option><option value="other">その他</option></select></div><div class="form-group-inline"><label>担当委員会</label><select id="ev-committee"><option value="">なし（全体）</option>'+opts+'</select></div><div class="form-group-inline"><label>日時 *</label><input type="datetime-local" id="ev-date"></div><div class="form-group-inline"><label>場所</label><input type="text" id="ev-location" placeholder="万代シルバーホテル 3F"></div><div class="form-group-inline"><label>概要</label><textarea id="ev-desc" placeholder="内容の説明"></textarea></div><div class="form-group-inline"><label>出欠締切日</label><input type="datetime-local" id="ev-deadline"></div><button class="submit-btn" onclick="previewNewEvent()">プレビューを確認する</button></div>';
+    const inviteChecks=res.data.map(function(c){return '<label class="invite-checkbox-label"><input type="checkbox" name="invite-committee" value="'+c.id+'" data-name="'+c.name+'"> '+c.name+'</label>';}).join('');
+    el.innerHTML='<button class="back-btn" onclick="navigate(\'events\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">📅 イベントを作成</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="ev-title" placeholder="第149回 定例例会"></div><div class="form-group-inline"><label>種別 *</label><select id="ev-type"><option value="sanyaku">三役会議</option><option value="rijikai">理事会</option><option value="reikai">例会</option><option value="iinkai">委員会</option><option value="jigyou">その他事業</option><option value="other">その他</option></select></div><div class="form-group-inline"><label>担当委員会</label><select id="ev-committee"><option value="">なし（全体）</option>'+opts+'</select></div><div class="form-group-inline"><label>招待する委員会（任意・複数選択可）</label><div class="invite-checkboxes">'+(inviteChecks||'<div style="color:#999;font-size:13px">委員会が登録されていません</div>')+'</div><div style="font-size:11px;color:var(--text-mid);margin-top:6px">※ 何も選ばない場合は「全体向け」</div></div><div class="form-group-inline"><label>日時 *</label><input type="datetime-local" id="ev-date"></div><div class="form-group-inline"><label>場所</label><input type="text" id="ev-location" placeholder="万代シルバーホテル 3F"></div><div class="form-group-inline"><label>概要</label><textarea id="ev-desc" placeholder="内容の説明"></textarea></div><div class="form-group-inline"><label>出欠締切日</label><input type="datetime-local" id="ev-deadline"></div><button class="submit-btn" onclick="previewNewEvent()">プレビューを確認する</button></div>';
   });
+}
+
+function getInvitedCommittees() {
+  const boxes=document.querySelectorAll('input[name="invite-committee"]:checked');
+  return Array.from(boxes).map(function(b){return b.value;});
+}
+function getInvitedCommitteeNames() {
+  const boxes=document.querySelectorAll('input[name="invite-committee"]:checked');
+  return Array.from(boxes).map(function(b){return b.getAttribute('data-name');});
 }
 
 function previewNewEvent() {
@@ -612,22 +628,23 @@ function previewNewEvent() {
   const committee=document.getElementById('ev-committee').value;
   const desc=document.getElementById('ev-desc').value;
   const deadline=document.getElementById('ev-deadline').value;
+  const invited=getInvitedCommittees();
+  const invitedNames=getInvitedCommitteeNames();
   const eventDate=new Date(date);
   const dateStr=eventDate.getFullYear()+'年'+(eventDate.getMonth()+1)+'月'+eventDate.getDate()+'日 '+eventDate.getHours()+':'+String(eventDate.getMinutes()).padStart(2,'0');
   const el=document.getElementById('main-content');
   el.innerHTML='<button class="back-btn" onclick="showEventForm()">← 編集に戻る</button>'
-    +'<div class="card card-accent">'
-    +'<div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px">📋 プレビュー確認</div>'
+    +'<div class="card card-accent"><div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px">📋 プレビュー確認</div>'
     +'<span class="badge '+typeBadge(type)+'">'+typeLabel(type)+'</span>'
     +'<div class="detail-title">'+title+'</div>'
     +'<div class="detail-row"><span class="detail-label">日時</span><span class="detail-value">'+dateStr+'</span></div>'
     +'<div class="detail-row"><span class="detail-label">場所</span><span class="detail-value">'+(location||'未定')+'</span></div>'
     +(committee?'<div class="detail-row"><span class="detail-label">担当委員会</span><span class="detail-value">'+committee+'</span></div>':'')
+    +(invitedNames.length>0?'<div class="detail-row"><span class="detail-label">招待</span><span class="detail-value">'+invitedNames.map(function(n){return '<span class="invite-badge">📣 '+n+'</span>';}).join('')+'</span></div>':'<div class="detail-row"><span class="detail-label">招待</span><span class="detail-value" style="color:var(--text-mid);font-size:13px">全体向け</span></div>')
     +(desc?'<div class="detail-row"><span class="detail-label">概要</span><span class="detail-value">'+desc+'</span></div>':'')
     +(deadline?'<div class="detail-row"><span class="detail-label">出欠締切</span><span class="detail-value" style="color:var(--red);font-weight:700">'+fmtDateShort(deadline)+'</span></div>':'')
-    +'</div>'
-    +'<button class="submit-btn" onclick="submitNewEvent()">この内容で作成する</button>';
-  window._eventFormData={title,type,date,location,committee,desc,deadline};
+    +'</div><button class="submit-btn" onclick="submitNewEvent()">この内容で作成する</button>';
+  window._eventFormData={title,type,date,location,committee,desc,deadline,invited,invitedNames};
 }
 
 async function submitNewEvent() {
@@ -636,17 +653,13 @@ async function submitNewEvent() {
   try {
     const eventDate=new Date(d.date);
     const dateStr=eventDate.getFullYear()+'年'+(eventDate.getMonth()+1)+'月'+eventDate.getDate()+'日 '+eventDate.getHours()+':'+String(eventDate.getMinutes()).padStart(2,'0');
-    const res=await axios.post(API+'/events',{title:d.title,type:d.type,date:eventDate.toISOString(),location:d.location,description:d.desc,committee:d.committee||null,rsvp_deadline:d.deadline?new Date(d.deadline).toISOString():null,status:'published',created_by:currentUser.id},{headers:Object.assign({},hdrs(),{'Prefer':'return=representation'})});
+    const payload={title:d.title,type:d.type,date:eventDate.toISOString(),location:d.location,description:d.desc,committee:d.committee||null,rsvp_deadline:d.deadline?new Date(d.deadline).toISOString():null,status:'published',created_by:currentUser.id};
+    if(d.invited&&d.invited.length>0) payload.invited_committees=d.invited;
+    const res=await axios.post(API+'/events',payload,{headers:Object.assign({},hdrs(),{'Prefer':'return=representation'})});
     const newEventId=res.data&&res.data[0]?res.data[0].id:null;
-    const nb='【'+typeLabel(d.type)+'】'+d.title+' の開催が登録されました。\n\n📅 日時：'+dateStr+'\n'+(d.location?'📍 場所：'+d.location+'\n':'')+(d.committee?'🏛️ 担当委員会：'+d.committee+'\n':'')+(d.deadline?'⏰ 出欠締切：'+fmtDateTime(d.deadline)+'\n':'')+'\n詳細は「会議・事業」メニューよりご確認ください。';
-    await createAutoNotice({
-      title:'📅 【'+typeLabel(d.type)+'】'+d.title+' が登録されました',
-      body:nb,
-      priority:'normal',
-      category:'meeting',
-      notice_type:'event_created',
-      event_id:newEventId
-    });
+    const inviteText=(d.invitedNames&&d.invitedNames.length>0)?'📣 招待委員会：'+d.invitedNames.join('、')+'\n':'';
+    const nb='【'+typeLabel(d.type)+'】'+d.title+' の開催が登録されました。\n\n📅 日時：'+dateStr+'\n'+(d.location?'📍 場所：'+d.location+'\n':'')+(d.committee?'🏛️ 担当委員会：'+d.committee+'\n':'')+inviteText+(d.deadline?'⏰ 出欠締切：'+fmtDateTime(d.deadline)+'\n':'')+'\n詳細は「会議・事業」メニューよりご確認ください。';
+    await createAutoNotice({title:'📅 【'+typeLabel(d.type)+'】'+d.title+' が登録されました',body:nb,priority:'normal',category:'meeting',notice_type:'event_created',event_id:newEventId});
     alert('作成しました！'); navigate('events');
   } catch(e) { console.error(e); alert('作成に失敗しました'); }
 }
@@ -657,10 +670,12 @@ async function showEventEditForm(id) {
     const eRes=await axios.get(API+'/events?id=eq.'+id,{headers:hdrs()});
     const cRes=await axios.get(API+'/committees?order=sort_order.asc',{headers:hdrs()});
     const e=eRes.data[0];
+    const currentInvited=e.invited_committees||[];
     const opts=cRes.data.map(function(c){return '<option value="'+c.name+'"'+(e.committee===c.name?' selected':'')+'>'+c.name+'</option>';}).join('');
+    const inviteChecks=cRes.data.map(function(c){const checked=currentInvited.includes(c.id)?' checked':'';return '<label class="invite-checkbox-label"><input type="checkbox" name="invite-committee" value="'+c.id+'" data-name="'+c.name+'"'+checked+'> '+c.name+'</label>';}).join('');
     const dt=new Date(e.date);
     const dtL=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')+'T'+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
-    el.innerHTML='<button class="back-btn" onclick="navigate(\'events\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">📅 会議・事業を編集</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="ev-title" value="'+e.title+'"></div><div class="form-group-inline"><label>種別 *</label><select id="ev-type"><option value="sanyaku"'+(e.type==='sanyaku'?' selected':'')+'>三役会議</option><option value="rijikai"'+(e.type==='rijikai'?' selected':'')+'>理事会</option><option value="reikai"'+(e.type==='reikai'?' selected':'')+'>例会</option><option value="iinkai"'+(e.type==='iinkai'?' selected':'')+'>委員会</option><option value="jigyou"'+(e.type==='jigyou'?' selected':'')+'>その他事業</option><option value="other"'+(e.type==='other'?' selected':'')+'>その他</option></select></div><div class="form-group-inline"><label>担当委員会</label><select id="ev-committee"><option value="">なし（全体）</option>'+opts+'</select></div><div class="form-group-inline"><label>日時 *</label><input type="datetime-local" id="ev-date" value="'+dtL+'"></div><div class="form-group-inline"><label>場所</label><input type="text" id="ev-location" value="'+(e.location||'')+'"></div><div class="form-group-inline"><label>概要</label><textarea id="ev-desc">'+(e.description||'')+'</textarea></div><div class="form-group-inline"><label>資料を追加（任意）</label><input type="text" id="ev-file-name" placeholder="ファイルの表示名" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><select id="ev-file-category" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><option value="">カテゴリを選択...</option><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select><input type="file" id="ev-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div><button class="submit-btn" onclick="updateEvent(\''+id+'\')">更新する</button></div>';
+    el.innerHTML='<button class="back-btn" onclick="navigate(\'events\')">← 一覧に戻る</button><div class="card card-accent"><div class="section-title">📅 会議・事業を編集</div><div class="form-group-inline"><label>タイトル *</label><input type="text" id="ev-title" value="'+e.title+'"></div><div class="form-group-inline"><label>種別 *</label><select id="ev-type"><option value="sanyaku"'+(e.type==='sanyaku'?' selected':'')+'>三役会議</option><option value="rijikai"'+(e.type==='rijikai'?' selected':'')+'>理事会</option><option value="reikai"'+(e.type==='reikai'?' selected':'')+'>例会</option><option value="iinkai"'+(e.type==='iinkai'?' selected':'')+'>委員会</option><option value="jigyou"'+(e.type==='jigyou'?' selected':'')+'>その他事業</option><option value="other"'+(e.type==='other'?' selected':'')+'>その他</option></select></div><div class="form-group-inline"><label>担当委員会</label><select id="ev-committee"><option value="">なし（全体）</option>'+opts+'</select></div><div class="form-group-inline"><label>招待する委員会（任意・複数選択可）</label><div class="invite-checkboxes">'+(inviteChecks||'<div style="color:#999;font-size:13px">委員会が登録されていません</div>')+'</div><div style="font-size:11px;color:var(--text-mid);margin-top:6px">※ 何も選ばない場合は「全体向け」</div></div><div class="form-group-inline"><label>日時 *</label><input type="datetime-local" id="ev-date" value="'+dtL+'"></div><div class="form-group-inline"><label>場所</label><input type="text" id="ev-location" value="'+(e.location||'')+'"></div><div class="form-group-inline"><label>概要</label><textarea id="ev-desc">'+(e.description||'')+'</textarea></div><div class="form-group-inline"><label>資料を追加（任意）</label><input type="text" id="ev-file-name" placeholder="ファイルの表示名" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><select id="ev-file-category" style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-mid);border-radius:2px;font-size:14px;margin-bottom:10px"><option value="">カテゴリを選択...</option><option value="kumiai">組合資料</option><option value="keikaku">計画資料</option><option value="rijikai">理事会資料</option><option value="sanyaku">三役資料</option><option value="reikai">例会資料</option><option value="other">その他</option></select><input type="file" id="ev-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.png" style="width:100%;padding:8px 0;font-size:14px"></div><button class="submit-btn" onclick="updateEvent(\''+id+'\')">更新する</button></div>';
   } catch(e) { alert('読み込みに失敗しました'); }
 }
 
@@ -669,7 +684,9 @@ async function updateEvent(id) {
   if(!title||!date) { alert('タイトルと日時は必須です'); return; }
   const btn=document.querySelector('#main-content .submit-btn'); btn.textContent='更新中...'; btn.disabled=true;
   try {
-    await axios.patch(API+'/events?id=eq.'+id,{title,type:document.getElementById('ev-type').value,date:new Date(date).toISOString(),location:document.getElementById('ev-location').value,description:document.getElementById('ev-desc').value,committee:document.getElementById('ev-committee').value||null},{headers:Object.assign({},hdrs(),{'Prefer':'return=minimal'})});
+    const invited=getInvitedCommittees();
+    const upd={title,type:document.getElementById('ev-type').value,date:new Date(date).toISOString(),location:document.getElementById('ev-location').value,description:document.getElementById('ev-desc').value,committee:document.getElementById('ev-committee').value||null,invited_committees:invited.length>0?invited:null};
+    await axios.patch(API+'/events?id=eq.'+id,upd,{headers:Object.assign({},hdrs(),{'Prefer':'return=minimal'})});
     const file=document.getElementById('ev-file')?document.getElementById('ev-file').files[0]:null;
     if(file) {
       const ext=file.name.split('.').pop(), filePath='events/'+id+'/'+Date.now()+'.'+ext;
@@ -680,7 +697,6 @@ async function updateEvent(id) {
     alert('更新しました！'); navigate('events');
   } catch(e) { alert('更新に失敗しました'); btn.textContent='更新する'; btn.disabled=false; }
 }
-
 async function showEventDetail(id) {
   const el=document.getElementById('main-content'); el.innerHTML='<div class="loading"></div>';
   try {
@@ -737,18 +753,31 @@ async function showEventDetail(id) {
     if(['admin','office','director'].includes(currentProfile.role)) {
       html+='<div style="background:#f8fafc;border-radius:6px;padding:12px;margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:var(--text-mid);margin-bottom:6px">📋 出欠回答URL</div><div style="display:flex;gap:8px;align-items:center"><div style="font-size:11px;color:var(--text);background:#fff;border:1px solid var(--gray-mid);border-radius:4px;padding:8px;flex:1;word-break:break-all">'+rsvpUrl+'</div><button onclick="copyRsvpUrl(\''+rsvpUrl+'\')" style="background:var(--red);color:#fff;border:none;border-radius:4px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">コピー</button></div></div>';
     }
-
+// 招待委員会のメンバーIDを集計
+    const invitedCommitteeIds=e.invited_committees||[];
+    const isFullyOpen=invitedCommitteeIds.length===0;
+    const invitedUserIds=new Set();
+    if(!isFullyOpen) {
+      const cmAll=await axios.get(API+'/committee_members',{headers:hdrs()});
+      const cAll=await axios.get(API+'/committees',{headers:hdrs()});
+      cmAll.data.forEach(function(m){ if(invitedCommitteeIds.includes(m.committee_id)) invitedUserIds.add(m.user_id); });
+      cAll.data.forEach(function(c){ if(invitedCommitteeIds.includes(c.id)&&c.chair_id) invitedUserIds.add(c.chair_id); });
+      const invitedNames=invitedCommitteeIds.map(function(cid){ const c=cAll.data.find(function(x){return x.id===cid;}); return c?c.name:null; }).filter(Boolean);
+      if(invitedNames.length>0) html+='<div style="background:#fef3c7;border-left:4px solid #fbbf24;padding:10px 14px;border-radius:2px;margin-bottom:12px;font-size:13px;color:#92400e">📣 招待委員会：'+invitedNames.join('、')+'<br><span style="font-size:11px">招待外メンバーはグレー表示されます</span></div>';
+    }
     html+='<div class="section-title">回答一覧</div>';
     allAtts.forEach(function(a){
       const u=users.find(function(x){return x.id===a.user_id;}); if(!u) return;
       const cls=a.status==='attend'?'badge-green':a.status==='absent'?'badge-red':a.status==='late'?'badge-orange':'badge-gray';
       const lbl=a.status==='attend'?'出席':a.status==='absent'?'欠席':'遅刻・早退';
-      html+='<div class="row"><div><div class="row-title" style="font-size:14px">'+u.name+'</div><div class="row-sub">'+(u.company||'')+'</div>'+(a.comment?'<div class="row-sub">💬 '+a.comment+'</div>':'')+'</div><span class="badge '+cls+'">'+lbl+'</span></div>';
+     const _notInv=!isFullyOpen&&!invitedUserIds.has(u.id);
+      html+='<div class="row'+(_notInv?' not-invited':'')+'"><div><div class="row-title" style="font-size:14px">'+u.name+'</div>
     });
     if(uc>0) {
       html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--gray)"><div style="font-size:12px;font-weight:700;color:#999;margin-bottom:8px">未回答</div>';
-      users.filter(function(u){return !aids.includes(u.id);}).forEach(function(u){
-        html+='<div class="row"><div><div class="row-title" style="font-size:14px;color:#999">'+u.name+'</div><div class="row-sub">'+(u.company||'')+'</div></div><span class="badge badge-gray">未回答</span></div>';
+     users.filter(function(u){return !aids.includes(u.id);}).forEach(function(u){
+        const _notInv=!isFullyOpen&&!invitedUserIds.has(u.id);
+        html+='<div class="row'+(_notInv?' not-invited':'')+'"><div><div class="row-title" style="font-size:14px;color:#999">'+u.name+'</div>...
       });
       html+='</div>';
     }
