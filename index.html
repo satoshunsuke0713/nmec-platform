@@ -771,13 +771,13 @@ async function showEventDetail(id) {
       const cls=a.status==='attend'?'badge-green':a.status==='absent'?'badge-red':a.status==='late'?'badge-orange':'badge-gray';
       const lbl=a.status==='attend'?'出席':a.status==='absent'?'欠席':'遅刻・早退';
      const _notInv=!isFullyOpen&&!invitedUserIds.has(u.id);
-      html+='<div class="row'+(_notInv?' not-invited':'')+'"><div><div class="row-title" style="font-size:14px">'+u.name+'</div>
+      html+='<div class="row'+(_notInv?' not-invited':'')+'"><div><div class="row-title" style="font-size:14px">'+u.name+'</div><div class="row-sub">'+(u.company||'')+'</div>'+(a.comment?'<div class="row-sub">💬 '+a.comment+'</div>':'')+'</div><span class="badge '+cls+'">'+lbl+'</span></div>';
     });
     if(uc>0) {
       html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--gray)"><div style="font-size:12px;font-weight:700;color:#999;margin-bottom:8px">未回答</div>';
      users.filter(function(u){return !aids.includes(u.id);}).forEach(function(u){
         const _notInv=!isFullyOpen&&!invitedUserIds.has(u.id);
-        html+='<div class="row'+(_notInv?' not-invited':'')+'"><div><div class="row-title" style="font-size:14px;color:#999">'+u.name+'</div>...
+        html+='<div class="row'+(_notInv?' not-invited':'')+'"><div><div class="row-title" style="font-size:14px;color:#999">'+u.name+'</div><div class="row-sub">'+(u.company||'')+'</div></div><span class="badge badge-gray">未回答</span></div>';
       });
       html+='</div>';
     }
