@@ -764,7 +764,7 @@ async function showEventDetail(id) {
       cmAll.data.forEach(function(m){ if(invitedCommitteeIds.includes(m.committee_id)) invitedUserIds.add(m.user_id); });
       cAll.data.forEach(function(c){ if(invitedCommitteeIds.includes(c.id)&&c.chair_id) invitedUserIds.add(c.chair_id); });
       const invitedNames=invitedCommitteeIds.map(function(cid){ const c=cAll.data.find(function(x){return x.id===cid;}); return c?c.name:null; }).filter(Boolean);
-      const usersAll=await axios.get(API+'/users?or=(position.eq.理事長,position.eq.副理事長)',{headers:hdrs()}); usersAll.data.forEach(function(u){ invitedUserIds.add(u.id); });
+      const usersAll=await axios.get(API+'/users?or=(position.eq.理事長,position.eq.副理事長,position.eq.専務理事,position.eq.事務局長)',{headers:hdrs()}); usersAll.data.forEach(function(u){ invitedUserIds.add(u.id); });
       if(invitedNames.length>0) html+='<div style="background:#fef3c7;border-left:4px solid #fbbf24;padding:10px 14px;border-radius:2px;margin-bottom:12px;font-size:13px;color:#92400e">📣 招待委員会：'+invitedNames.join('、')+'<br><span style="font-size:11px">招待外メンバーはグレー表示されます</span></div>';
     }
     html+='<div class="section-title">回答一覧</div>';
